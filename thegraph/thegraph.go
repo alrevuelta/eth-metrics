@@ -20,9 +20,10 @@ import (
 
 // See attestantio graphs
 var ENDPOINTS = map[string]string{
-	"mainnet": "https://api.thegraph.com/subgraphs/name/attestantio/eth2deposits",
-	"prater":  "https://api.thegraph.com/subgraphs/name/attestantio/eth2deposits-pater",
-	"pyrmont": "https://api.thegraph.com/subgraphs/name/attestantio/eth2deposits-pyrmont",
+	"mainnet": "https://api.thegraph.com/subgraphs/name/alrevuelta/eth2deposits",
+	//"mainnet": "https://api.thegraph.com/subgraphs/name/attestantio/eth2deposits",
+	//"prater":  "https://api.thegraph.com/subgraphs/name/attestantio/eth2deposits-pater",
+	//"pyrmont": "https://api.thegraph.com/subgraphs/name/attestantio/eth2deposits-pyrmont",
 }
 
 // Max results per page that thegraph allows. More than it
@@ -30,15 +31,21 @@ var ENDPOINTS = map[string]string{
 const MAX_RESULTS_PAGE = uint64(1000)
 
 // See https://thegraph.com/docs/developer/graphql-api
-var QUERY_SCHEMA = `{"query":
-    "{deposits(first: __first__, where: {id_gt: \"__lastid__\", withdrawalCredentials_in : [__withcredlist__] }) { validatorPubKey, id }}",
+var QUERY_SCHEMA_0 = `{"query":
+    "{deposits(first: __first__, where: {id_gt: \"__lastid__\", withdrawalCredentials : \"__withcred__\" }) { validatorPubKey, id }}",
+    "variables":null
+}`
+
+var QUERY_SCHEMA_1 = `{"query":
+    "{deposits(first: __first__, where: {id_gt: \"__lastid__\", from : \"__from__\" }) { validatorPubKey, id }}",
     "variables":null
 }`
 
 type Thegraph struct {
-	network  string
-	endpoint string
-	withCred []string
+	network       string
+	endpoint      string
+	withCred      []string
+	fromAddresses []string
 }
 
 // Response structure for the previous query
@@ -55,10 +62,10 @@ type Data struct {
 	Data Deposits `json:"data"`
 }
 
-func NewThegraph(network string, withCredList []string) (*Thegraph, error) {
+func NewThegraph(network string, withCredList []string, fromAddresses []string) (*Thegraph, error) {
 
-	if len(withCredList) == 0 {
-		return nil, errors.New("at least one withdrawal credential must be provided")
+	if len(withCredList) == 0 && len(fromAddresses) == 0 {
+		return nil, errors.New("at least one withdrawal credential or from address must be provided")
 	}
 
 	// Verify that the withdrawal credentials are valid
@@ -69,6 +76,8 @@ func NewThegraph(network string, withCredList []string) (*Thegraph, error) {
 		}
 	}
 
+	// TODO: Validate fromAddresses
+
 	// Verify that the network is supported
 	graphEndpoint, exists := ENDPOINTS[network]
 	if !exists {
@@ -76,21 +85,60 @@ func NewThegraph(network string, withCredList []string) (*Thegraph, error) {
 	}
 
 	return &Thegraph{
-		network:  network,
-		withCred: withCredList,
-		endpoint: graphEndpoint,
+		network:       network,
+		withCred:      withCredList,
+		fromAddresses: fromAddresses,
+		endpoint:      graphEndpoint,
 	}, nil
 }
 
-// Get the deposited keys in the eth2 deposit contract by withdrawal credentials
-func (a *Thegraph) GetDepositedKeys() ([][]byte, error) {
-	depositedKeys := make([][]byte, 0)
+// Get the deposited keys in the eth2 deposit contract according to two criteria:
+// - withdrawal credentials used
+// - from address used to make the deposit
+func (a *Thegraph) GetAllDepositedKeys() ([][]byte, error) {
+	allDepositedKeys := make([][]byte, 0)
 
+	// Get deposited addresses by withdrawal credentials
+	for _, withCred := range a.withCred {
+		withdrawalDepositedKeys, err := a.GetDepositedKeys(withCred, 0)
+		if err != nil {
+			return nil, errors.Wrap(err, "error getting deposits by withdrawal credentials")
+		}
+		allDepositedKeys = append(allDepositedKeys, withdrawalDepositedKeys...)
+	}
+
+	for _, fromAddress := range a.fromAddresses {
+		fromDepositedKeys, err := a.GetDepositedKeys(fromAddress, 1)
+		if err != nil {
+			return nil, errors.Wrap(err, "error getting deposits by from address")
+		}
+		allDepositedKeys = append(allDepositedKeys, fromDepositedKeys...)
+	}
+
+	return RemoveDuplicates(allDepositedKeys), nil
+}
+
+// TODO: Move to utils
+func RemoveDuplicates(byteSlice [][]byte) [][]byte {
+	keys := make(map[string]bool)
+	noDuplicatesSlice := make([][]byte, 0)
+	for _, entry := range byteSlice {
+		strEntry := hex.EncodeToString(entry)
+		if _, value := keys[strEntry]; !value {
+			keys[strEntry] = true
+			noDuplicatesSlice = append(noDuplicatesSlice, entry)
+		}
+	}
+	return noDuplicatesSlice
+}
+
+func (a *Thegraph) GetDepositedKeys(filterCriteria string, queryType int) ([][]byte, error) {
+	depositedKeys := make([][]byte, 0)
 	done := false
 
 	id := "0x0000000000000000"
 	for !done {
-		pageKeys, startId, err := getKeysPage(id, a.endpoint, a.withCred)
+		pageKeys, startId, err := getKeysPage(id, a.endpoint, filterCriteria, queryType)
 		if err != nil {
 			return nil, errors.Wrap(err, "error getting page")
 		}
@@ -105,15 +153,17 @@ func (a *Thegraph) GetDepositedKeys() ([][]byte, error) {
 
 // TheGraph is limited to 1000 results per page, so if we have more keys
 // we need to run multiple calls. Page starts at 0
-func getKeysPage(id string, graphEndpoint string, withCredentials []string) ([][]byte, string, error) {
-	var quotedWithCredentials []string
-	for _, cred := range withCredentials {
-		// Each with credential is surrounded by escaped quotes \"withcred\"
-		temp := strings.Replace(strconv.Quote(cred), "\"", `\"`, -1)
-		quotedWithCredentials = append(quotedWithCredentials, temp)
-	}
+func getKeysPage(id string, graphEndpoint string, queryAddress string, queryType int) ([][]byte, string, error) {
 
-	query := strings.Replace(QUERY_SCHEMA, "__withcredlist__", strings.Join(quotedWithCredentials, ","), -1)
+	// prepare the graphql query
+	var query string
+	if queryType == 0 {
+		query = strings.Replace(QUERY_SCHEMA_0, "__withcred__", queryAddress, -1)
+	} else if queryType == 1 {
+		query = strings.Replace(QUERY_SCHEMA_1, "__from__", queryAddress, -1)
+	} else {
+		return nil, "", errors.New("query type not supported")
+	}
 	query = strings.Replace(query, "__first__", strconv.FormatUint(MAX_RESULTS_PAGE, 10), -1)
 	query = strings.Replace(query, "__lastid__", id, -1)
 
@@ -159,7 +209,10 @@ func getKeysPage(id string, graphEndpoint string, withCredentials []string) ([][
 		pageKeys = append(pageKeys, decKey)
 	}
 
-	return pageKeys, response.Data.Deposits[len(response.Data.Deposits)-1].Id, nil
+	if len(response.Data.Deposits) != 0 {
+		return pageKeys, response.Data.Deposits[len(response.Data.Deposits)-1].Id, nil
+	}
+	return pageKeys, "", nil
 }
 
 // Makes sure the withdrawal credentials comply with:

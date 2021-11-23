@@ -74,9 +74,10 @@ func NewMetrics(
 	ctx context.Context,
 	beaconRpcEndpoint string,
 	network string,
-	withCredList []string) (*Metrics, error) {
+	withCredList []string,
+	fromAddresses []string) (*Metrics, error) {
 
-	theGraph, err := thegraph.NewThegraph(network, withCredList)
+	theGraph, err := thegraph.NewThegraph(network, withCredList, fromAddresses)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating thegraph")
 	}
@@ -111,7 +112,7 @@ func (a *Metrics) Run() {
 			// TODO: Race condition with the depositedKeys
 
 			// TODO: Take theGraph out of metrics
-			pubKeysDeposited, err := a.theGraph.GetDepositedKeys()
+			pubKeysDeposited, err := a.theGraph.GetAllDepositedKeys()
 			if err != nil {
 				log.Error(err)
 				time.Sleep(60 * 10 * time.Second)

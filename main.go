@@ -20,7 +20,8 @@ func main() {
 		context.Background(),
 		config.BeaconRpcEndpoint,
 		config.Network,
-		config.WithdrawalCredentials)
+		config.WithdrawalCredentials,
+		config.FromAddress)
 
 	if err != nil {
 		log.Fatal("Error creating new metrics: ", err)
