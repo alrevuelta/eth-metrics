@@ -4,8 +4,9 @@ import (
 	//"bytes"
 	"context"
 	"encoding/hex"
-	"eth-pools-metrics/prometheus" // TODO: Set github prefix when released
-	"eth-pools-metrics/thegraph"   // TODO: Use Github prefix when released
+	"eth-pools-metrics/prometheus"       // TODO: Set github prefix when released
+	"eth-pools-metrics/prysm-concurrent" // TODO: Use Github prefix when released
+	"eth-pools-metrics/thegraph"         // TODO: Use Github prefix when released
 	"fmt"
 	"github.com/pkg/errors"
 	ethTypes "github.com/prysmaticlabs/eth2-types"
@@ -13,12 +14,10 @@ import (
 	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
 	"github.com/prysmaticlabs/prysm/v2/time/slots"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"math/big"
 	"strconv"
-	"sync"
 	"time"
 )
 
@@ -34,6 +33,7 @@ type Metrics struct {
 	beaconChainClient ethpb.BeaconChainClient
 	validatorClient   ethpb.BeaconNodeValidatorClient
 	nodeClient        ethpb.NodeClient
+	prysmConcurrent   *prysmconcurrent.PrysmConcurrent
 	genesisSeconds    uint64
 
 	depositedKeys [][]byte
@@ -96,7 +96,13 @@ func NewMetrics(
 		return nil, errors.Wrap(err, "error getting genesis info")
 	}
 
+	prysmConcurrent, err := prysmconcurrent.NewPrysmConcurrent(ctx, beaconRpcEndpoint)
+	if err != nil {
+		return nil, errors.Wrap(err, "error creating prysm concurrent")
+	}
+
 	return &Metrics{
+		prysmConcurrent:   prysmConcurrent,
 		theGraph:          theGraph,
 		beaconChainClient: beaconClient,
 		validatorClient:   validatorClient,
@@ -205,6 +211,8 @@ func (a *Metrics) Run() {
 			cumulativeRewards, depositedAmount, err := a.GetRewards(context.Background(), uint64(head.FinalizedEpoch))
 			if err != nil {
 				log.Error("could not get rewards and balances", err)
+				time.Sleep(30 * time.Second)
+				continue
 			}
 
 			a.ValsMetrics.CumulativeRewards = cumulativeRewards
@@ -219,6 +227,7 @@ func (a *Metrics) Run() {
 			}).Info("Rewards/Balances:")
 
 			// Do not fetch every epoch. For a large number of validators it would be too much
+			// TODO: Set as config parameter
 			time.Sleep(30 * 60 * time.Second)
 		}
 	}()
@@ -270,7 +279,7 @@ func (a *Metrics) FetchDuties(ctx context.Context, epoch uint64) error {
 
 	// TODO: Move this
 	chunkSize := 2000
-	duties, err := a.ParalelGetDuties(ctx, dutReq, chunkSize)
+	duties, err := a.prysmConcurrent.ParalelGetDuties(ctx, dutReq, chunkSize)
 
 	if err != nil {
 		return errors.Wrap(err, "could not get duties")
@@ -359,76 +368,6 @@ func filterActiveValidators(vals *ethpb.MultipleValidatorStatusResponse) [][]byt
 		}
 	}
 	return activeKeys
-}
-
-// TODO: Not implemented
-func (a *Metrics) ParalelGetMultipleValidatorStatus(ctx context.Context, req *ethpb.MultipleValidatorStatusRequest) (*ethpb.MultipleValidatorStatusResponse, error) {
-	valsStatus, err := a.validatorClient.MultipleValidatorStatus(ctx, req)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not get multiple validator status")
-	}
-	return valsStatus, nil
-}
-
-// TODO: Not implemented
-func (a *Metrics) ParalelGetValidatorPerformance(ctx context.Context, req *ethpb.ValidatorPerformanceRequest) (*ethpb.ValidatorPerformanceResponse, error) {
-	valsPerformance, err := a.beaconChainClient.GetValidatorPerformance(ctx, req)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not get validator performance from beacon client")
-	}
-	return valsPerformance, nil
-}
-
-// TODO: Move all paralel calls somewhere else
-func (a *Metrics) ParalelGetDuties(ctx context.Context, req *ethpb.DutiesRequest, chunkSize int) (*ethpb.DutiesResponse, error) {
-
-	epoch := req.Epoch
-	activeKeys := req.PublicKeys
-
-	var wg sync.WaitGroup
-	var g errgroup.Group
-	var lock sync.Mutex
-
-	res := &ethpb.DutiesResponse{}
-
-	for i := 0; i < len(activeKeys); i += chunkSize {
-		wg.Add(1)
-
-		i := i
-		end := i + chunkSize
-
-		if end > len(activeKeys) {
-			end = len(activeKeys)
-		}
-
-		keyChunk := activeKeys[i:end]
-
-		g.Go(func() error {
-			lock.Lock()
-			defer lock.Unlock()
-			defer wg.Done()
-
-			chunkReq := &ethpb.DutiesRequest{
-				Epoch:      epoch,
-				PublicKeys: keyChunk,
-			}
-
-			chunkDuties, err := a.validatorClient.GetDuties(ctx, chunkReq)
-			if err != nil {
-				return errors.Wrap(err, "could not get duties for validators")
-			}
-			res.Duties = append(res.Duties, chunkDuties.Duties...)
-			res.CurrentEpochDuties = append(res.CurrentEpochDuties, chunkDuties.CurrentEpochDuties...)
-			res.NextEpochDuties = append(res.NextEpochDuties, chunkDuties.NextEpochDuties...)
-			return nil
-		})
-	}
-
-	if err := g.Wait(); err != nil {
-		return nil, err
-	}
-
-	return res, nil
 }
 
 //Fetches data from the beacon chain for a given set of validators. Note
@@ -655,6 +594,7 @@ func (a *Metrics) Monitor() {
 	}).Info("Balance decreased:")
 }
 
+// TODO: Move
 func boolToUint64(in bool) uint64 {
 	if in {
 		return uint64(1)
@@ -679,6 +619,7 @@ func getBlockParams(block *ethpb.BeaconBlockContainer) (uint64, ethTypes.Slot, s
 	return propIndex, slot, graffiti
 }
 
+// TODO: Move
 func getSlotsInEpoch(ctx context.Context, beaconChainClient ethpb.BeaconChainClient) (uint64, error) {
 	beaconConfig, err := GetBeaconConfig(ctx, beaconChainClient)
 	if err != nil {
