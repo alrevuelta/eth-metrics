@@ -9,6 +9,8 @@ Monitor the performance of your Ethereum 2.0 staking pool. Just input the withdr
 * Monitor the percent of validators which balance decreased
 * Proposed and missed blocks monitoring
 * All metrics are exposed with prometheus, see `/prometheus`
+* Only the latest epoch is analyzed, this tool can't go back in time
+* No need to run an archival node, default config should be enough
 
 ## Build
 
