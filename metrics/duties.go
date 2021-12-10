@@ -148,3 +148,20 @@ func (a *Metrics) getProposalDuties() (uint64, uint64) {
 
 	return totalProposalDuties, proposalsPerformed
 }
+
+func getBlockParams(block *ethpb.BeaconBlockContainer) (uint64, ethTypes.Slot, string) {
+	var propIndex uint64
+	var slot ethTypes.Slot
+	var graffiti string
+
+	if block.GetAltairBlock() == nil {
+		propIndex = uint64(block.GetPhase0Block().Block.ProposerIndex)
+		slot = block.GetPhase0Block().Block.Slot
+		graffiti = fmt.Sprintf("%s", block.GetPhase0Block().Block.Body.Graffiti)
+	} else {
+		propIndex = uint64(block.GetAltairBlock().Block.ProposerIndex)
+		slot = block.GetAltairBlock().Block.Slot
+		graffiti = fmt.Sprintf("%s", block.GetAltairBlock().Block.Body.Graffiti)
+	}
+	return propIndex, slot, graffiti
+}

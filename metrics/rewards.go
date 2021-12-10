@@ -30,8 +30,8 @@ func (a *Metrics) StreamRewards() {
 				continue
 			}
 
-      log.Info("Getting rewards for epoch: ", head.FinalizedEpoch)
-      
+			log.Info("Getting rewards for epoch: ", head.FinalizedEpoch)
+
 			cumulativeRewards, depositedAmount, err := a.GetRewards(context.Background(), uint64(head.FinalizedEpoch))
 			if err != nil {
 				log.Error("could not get rewards and balances", err)
@@ -95,7 +95,9 @@ func (a *Metrics) GetBalances(ctx context.Context, epoch uint64) ([]*ethpb.Valid
 		}
 
 		balances = append(balances, resp.Balances...)
-		log.Info("NextPageToken: ", resp.NextPageToken, " length: ", len(resp.Balances))
+
+    // TODO: Add debug traces
+    //log.Info("NextPageToken: ", resp.NextPageToken, " length: ", len(resp.Balances))
 
 		if resp.NextPageToken == "" {
 			break
