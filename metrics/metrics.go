@@ -35,6 +35,7 @@ type Metrics struct {
 	nodeClient        ethpb.NodeClient
 	prysmConcurrent   *prysmconcurrent.PrysmConcurrent
 	genesisSeconds    uint64
+	slotsInEpoch      uint64
 
 	depositedKeys [][]byte
 	activeKeys    [][]byte
@@ -60,9 +61,6 @@ type ValidatorsMetrics struct {
 	NOfIncorrectTarget          uint64
 	NOfIncorrectHead            uint64
 	NOfValsWithDecreasedBalance uint64
-
-	NOfScheduledBlocks uint64
-	NOfProposedBlocks  uint64
 
 	BalanceDecreasedPercent float64
 
@@ -96,6 +94,11 @@ func NewMetrics(
 		return nil, errors.Wrap(err, "error getting genesis info")
 	}
 
+	slotsInEpoch, err := getSlotsInEpoch(ctx, beaconClient)
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting slots in epoch from config")
+	}
+
 	prysmConcurrent, err := prysmconcurrent.NewPrysmConcurrent(ctx, beaconRpcEndpoint)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating prysm concurrent")
@@ -107,12 +110,15 @@ func NewMetrics(
 		beaconChainClient: beaconClient,
 		validatorClient:   validatorClient,
 		nodeClient:        nodeClient,
-		genesisSeconds:    uint64(genesis.GenesisTime.Seconds),
 		withCredList:      withCredList,
+		genesisSeconds:    uint64(genesis.GenesisTime.Seconds),
+		slotsInEpoch:      uint64(slotsInEpoch),
 	}, nil
 }
 
 func (a *Metrics) Run() {
+	a.StreamDuties()
+
 	go func() {
 		for {
 			// TODO: Race condition with the depositedKeys
@@ -155,45 +161,6 @@ func (a *Metrics) Run() {
 			// TODO: Other status (slashed, etc)
 
 			time.Sleep(60 * 10 * time.Second)
-		}
-	}()
-
-	go func() {
-		lastEpoch := uint64(0)
-		for {
-			if a.activeKeys == nil {
-				log.Warn("No active keys to get duties")
-				time.Sleep(10 * time.Second)
-				continue
-			}
-
-			head, err := GetChainHead(context.Background(), a.beaconChainClient)
-			if err != nil {
-				log.Error("error getting chain head: ", err)
-			}
-			if uint64(head.FinalizedEpoch) <= lastEpoch {
-				time.Sleep(5 * time.Second)
-				continue
-			}
-			log.Info("Fetching duties for epoch: ", head.FinalizedEpoch)
-			err = a.FetchDuties(context.Background(), uint64(head.FinalizedEpoch))
-			if err != nil {
-				log.Error("could not get duties: ", err)
-				continue
-			}
-			nOfScheduledBlocks, nOfProposedBlocks := a.getProposalDuties()
-			a.ValsMetrics.NOfScheduledBlocks = nOfScheduledBlocks
-			a.ValsMetrics.NOfProposedBlocks = nOfProposedBlocks
-
-			prometheus.NOfScheduledBlocks.Set(float64(a.ValsMetrics.NOfScheduledBlocks))
-			prometheus.NOfProposedBlocks.Set(float64(a.ValsMetrics.NOfProposedBlocks))
-
-			log.WithFields(log.Fields{
-				"Epoch":           head.FinalizedEpoch,
-				"RequestedDuties": a.ValsMetrics.NOfScheduledBlocks,
-				"PerformedDuties": a.ValsMetrics.NOfProposedBlocks,
-			}).Info("Block proposals duties:")
-			lastEpoch = uint64(head.FinalizedEpoch)
 		}
 	}()
 
@@ -268,38 +235,6 @@ func (a *Metrics) Run() {
 			prometheus.BalanceDecreasedPercent.Set(a.ValsMetrics.BalanceDecreasedPercent)
 		}
 	}()
-}
-
-func (a *Metrics) FetchDuties(ctx context.Context, epoch uint64) error {
-	// Get the duties of the filtered validators
-	dutReq := &ethpb.DutiesRequest{
-		Epoch:      ethTypes.Epoch(epoch),
-		PublicKeys: a.activeKeys,
-	}
-
-	// TODO: Move this
-	chunkSize := 2000
-	duties, err := a.prysmConcurrent.ParalelGetDuties(ctx, dutReq, chunkSize)
-
-	if err != nil {
-		return errors.Wrap(err, "could not get duties")
-	}
-
-	a.duties = duties
-
-	// Get the blocks in the current epoch
-	blocks, err := a.beaconChainClient.ListBeaconBlocks(ctx, &ethpb.ListBlocksRequest{
-		QueryFilter: &ethpb.ListBlocksRequest_Epoch{
-			Epoch: ethTypes.Epoch(epoch),
-		},
-	})
-
-	if err != nil {
-		return errors.Wrap(err, "could not get blocks")
-	}
-	a.blocks = blocks
-
-	return nil
 }
 
 func (a *Metrics) GetRewards(ctx context.Context, epoch uint64) (*big.Int, *big.Int, error) {
@@ -490,74 +425,6 @@ func (a *Metrics) getNumOfBalanceDecreasedVals() (uint64, uint64) {
 	nOfValidators := uint64(len(a.valsPerformance.PublicKeys))
 
 	return nOfValsWithDecreasedBalance, nOfValidators
-}
-
-// Returns the number of duties in an epoch for all our validators and the number
-// of performed proposals
-func (a *Metrics) getProposalDuties() (uint64, uint64) {
-
-	if a.duties == nil {
-		log.Warn("No data is available to calculate the duties")
-		return uint64(0), uint64(0)
-	}
-
-	type Duty struct {
-		valIndex uint64
-		slot     ethTypes.Slot
-	}
-
-	// Store the proposing duties that belongs to our validators
-	proposalDuties := make([]Duty, 0)
-
-	// Scan all duties in the given epoch
-	for i := range a.duties.CurrentEpochDuties {
-		// If there are any proposal duties append them
-		if len(a.duties.CurrentEpochDuties[i].ProposerSlots) > 0 {
-			// Pub Key is also available res.CurrentEpochDuties[i].PublicKey
-			valIndex := uint64(a.duties.CurrentEpochDuties[i].ValidatorIndex)
-
-			// Most likely there will be only a single proposal per epoch
-			for _, propSlot := range a.duties.CurrentEpochDuties[i].ProposerSlots {
-				proposalDuties = append(proposalDuties, Duty{valIndex, propSlot})
-				log.WithFields(log.Fields{
-					"PublicKey": fmt.Sprintf("%x", a.duties.CurrentEpochDuties[i].PublicKey),
-					"ValIndex":  valIndex,
-					"Slot":      propSlot,
-					"Epoch":     a.Epoch,
-				}).Info("Proposal Duty Found:")
-			}
-		}
-	}
-
-	// Just return if no proposal duties were found for us
-	if len(proposalDuties) == 0 {
-		return 0, 0
-	}
-
-	proposalsPerformed := uint64(0)
-
-	// Iterate our validator proposal duties
-	for _, duty := range proposalDuties {
-		// Iterate all blocks and check if we proposed the ones we should
-		for _, block := range a.blocks.BlockContainers {
-			propIndex, slot, graffiti := getBlockParams(block)
-			// If the block at the slot was proposed by us (valIndex)
-			if duty.valIndex == propIndex && duty.slot == slot {
-				log.WithFields(log.Fields{
-					"ValIndex": propIndex,
-					"Slot":     slot,
-					"Epoch":    a.Epoch,
-					"Graffiti": graffiti,
-				}).Info("Proposal Duty Completion Verified:")
-				proposalsPerformed++
-				break
-			}
-		}
-	}
-
-	totalProposalDuties := uint64(len(proposalDuties))
-
-	return totalProposalDuties, proposalsPerformed
 }
 
 func (a *Metrics) Monitor() {

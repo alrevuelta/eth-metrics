@@ -38,7 +38,7 @@ func Test_ParalelGetDuties(t *testing.T) {
 	numOfDuties := 3
 	foundDuties := 0
 
-  require.Equal(t, len(duties.CurrentEpochDuties), 27994)
+	require.Equal(t, len(duties.CurrentEpochDuties), 27994)
 
 	// Note that the order is not guaranteed
 	for i := range duties.CurrentEpochDuties {
