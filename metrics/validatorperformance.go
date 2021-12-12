@@ -14,69 +14,67 @@ import (
 )
 
 func (a *Metrics) StreamValidatorPerformance() {
-	go func() {
-		for {
-			time.Sleep(2 * time.Second)
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			defer cancel()
+	for {
+		time.Sleep(2 * time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
 
-			// Fetch needed data to run the metrics
-			newData, err := a.FetchValidatorPerformance(ctx)
-			if err != nil {
-				log.WithError(err).Warn("Failed to fetch metrics data")
-				continue
-			}
-
-			if !newData {
-				continue
-			}
-
-			// Calculate the metrics
-			nOfTotalVotes, nOfIncorrectSource, nOfIncorrectTarget, nOfIncorrectHead := a.getIncorrectAttestations()
-			nOfValsWithDecreasedBalance, nOfValidators := a.getNumOfBalanceDecreasedVals()
-			balanceDecreasedPercent := (float64(nOfValsWithDecreasedBalance) / float64(nOfValidators)) * 100
-
-			// Log the metrics
-			logEpochSlot := log.WithFields(log.Fields{
-				"Epoch": a.Epoch,
-				"Slot":  a.Slot,
-			})
-
-			logEpochSlot.WithFields(log.Fields{
-				"nOfTotalVotes":      nOfTotalVotes,
-				"nOfIncorrectSource": nOfIncorrectSource,
-				"nOfIncorrectTarget": nOfIncorrectTarget,
-				"nOfIncorrectHead":   nOfIncorrectHead,
-			}).Info("Incorrect voting:")
-
-			logEpochSlot.WithFields(log.Fields{
-				"ActiveValidators":    len(a.activeKeys),
-				"DepositedValidators": len(a.depositedKeys),
-				"SlashedValidators":   "TODO",
-				"ExitingValidators":   "TODO",
-				"OtherStates":         "TODO",
-			}).Info("Validator Status:")
-
-			logEpochSlot.WithFields(log.Fields{
-				"PercentIncorrectSource": (float64(nOfIncorrectSource) / float64(nOfTotalVotes)) * 100,
-				"PercentIncorrectTarget": (float64(nOfIncorrectTarget) / float64(nOfTotalVotes)) * 100,
-				"PercentIncorrectHead":   (float64(nOfIncorrectHead) / float64(nOfTotalVotes)) * 100,
-			}).Info("Incorrect voting percents:")
-
-			logEpochSlot.WithFields(log.Fields{
-				"nOfValidators":               len(a.activeKeys),
-				"nOfValsWithDecreasedBalance": nOfValsWithDecreasedBalance,
-				"balanceDecreasedPercent":     balanceDecreasedPercent,
-			}).Info("Balance decreased:")
-
-			// Update prometheus metrics
-			prometheus.NOfTotalVotes.Set(float64(nOfTotalVotes))
-			prometheus.NOfIncorrectSource.Set(float64(nOfIncorrectSource))
-			prometheus.NOfIncorrectTarget.Set(float64(nOfIncorrectTarget))
-			prometheus.NOfIncorrectHead.Set(float64(nOfIncorrectHead))
-			prometheus.BalanceDecreasedPercent.Set(balanceDecreasedPercent)
+		// Fetch needed data to run the metrics
+		newData, err := a.FetchValidatorPerformance(ctx)
+		if err != nil {
+			log.WithError(err).Warn("Failed to fetch metrics data")
+			continue
 		}
-	}()
+
+		if !newData {
+			continue
+		}
+
+		// Calculate the metrics
+		nOfTotalVotes, nOfIncorrectSource, nOfIncorrectTarget, nOfIncorrectHead := a.getIncorrectAttestations()
+		nOfValsWithDecreasedBalance, nOfValidators := a.getNumOfBalanceDecreasedVals()
+		balanceDecreasedPercent := (float64(nOfValsWithDecreasedBalance) / float64(nOfValidators)) * 100
+
+		// Log the metrics
+		logEpochSlot := log.WithFields(log.Fields{
+			"Epoch": a.Epoch,
+			"Slot":  a.Slot,
+		})
+
+		logEpochSlot.WithFields(log.Fields{
+			"nOfTotalVotes":      nOfTotalVotes,
+			"nOfIncorrectSource": nOfIncorrectSource,
+			"nOfIncorrectTarget": nOfIncorrectTarget,
+			"nOfIncorrectHead":   nOfIncorrectHead,
+		}).Info("Incorrect voting:")
+
+		logEpochSlot.WithFields(log.Fields{
+			"ActiveValidators":    len(a.activeKeys),
+			"DepositedValidators": len(a.depositedKeys),
+			"SlashedValidators":   "TODO",
+			"ExitingValidators":   "TODO",
+			"OtherStates":         "TODO",
+		}).Info("Validator Status:")
+
+		logEpochSlot.WithFields(log.Fields{
+			"PercentIncorrectSource": (float64(nOfIncorrectSource) / float64(nOfTotalVotes)) * 100,
+			"PercentIncorrectTarget": (float64(nOfIncorrectTarget) / float64(nOfTotalVotes)) * 100,
+			"PercentIncorrectHead":   (float64(nOfIncorrectHead) / float64(nOfTotalVotes)) * 100,
+		}).Info("Incorrect voting percents:")
+
+		logEpochSlot.WithFields(log.Fields{
+			"nOfValidators":               len(a.activeKeys),
+			"nOfValsWithDecreasedBalance": nOfValsWithDecreasedBalance,
+			"balanceDecreasedPercent":     balanceDecreasedPercent,
+		}).Info("Balance decreased:")
+
+		// Update prometheus metrics
+		prometheus.NOfTotalVotes.Set(float64(nOfTotalVotes))
+		prometheus.NOfIncorrectSource.Set(float64(nOfIncorrectSource))
+		prometheus.NOfIncorrectTarget.Set(float64(nOfIncorrectTarget))
+		prometheus.NOfIncorrectHead.Set(float64(nOfIncorrectHead))
+		prometheus.BalanceDecreasedPercent.Set(balanceDecreasedPercent)
+	}
 }
 
 //Fetches data from the beacon chain for a given set of validators. Note

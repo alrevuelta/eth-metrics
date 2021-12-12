@@ -12,48 +12,46 @@ import (
 )
 
 func (a *Metrics) StreamRewards() {
-	go func() {
-		lastEpoch := uint64(0)
-		for {
-			if a.activeKeys == nil {
-				log.Warn("No active keys to calculate the rewards")
-				time.Sleep(30 * time.Second)
-				continue
-			}
-			head, err := GetChainHead(context.Background(), a.beaconChainClient)
-			if err != nil {
-				log.Error("error getting chain head", err)
-			}
-
-			if uint64(head.FinalizedEpoch) <= lastEpoch {
-				time.Sleep(5 * time.Second)
-				continue
-			}
-
-			log.Info("Getting rewards for epoch: ", head.FinalizedEpoch)
-
-			cumulativeRewards, depositedAmount, err := a.GetRewards(context.Background(), uint64(head.FinalizedEpoch))
-			if err != nil {
-				log.Error("could not get rewards and balances", err)
-				time.Sleep(30 * time.Second)
-				continue
-			}
-
-			prometheus.DepositedAmount.Set(float64(depositedAmount.Uint64()))
-			prometheus.CumulativeRewards.Set(float64(cumulativeRewards.Uint64()))
-
-			log.WithFields(log.Fields{
-				"Epoch":             uint64(head.FinalizedEpoch),
-				"DepositedAmount":   depositedAmount.Uint64(),
-				"CumulativeRewards": cumulativeRewards.Uint64(),
-			}).Info("Rewards/Balances:")
-			lastEpoch = uint64(head.FinalizedEpoch)
-
-			// Do not fetch every epoch. For a large number of validators it would be too much
-			// TODO: Set as config parameter
-			time.Sleep(30 * 60 * time.Second)
+	lastEpoch := uint64(0)
+	for {
+		if a.activeKeys == nil {
+			log.Warn("No active keys to calculate the rewards")
+			time.Sleep(30 * time.Second)
+			continue
 		}
-	}()
+		head, err := GetChainHead(context.Background(), a.beaconChainClient)
+		if err != nil {
+			log.Error("error getting chain head", err)
+		}
+
+		if uint64(head.FinalizedEpoch) <= lastEpoch {
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		log.Info("Getting rewards for epoch: ", head.FinalizedEpoch)
+
+		cumulativeRewards, depositedAmount, err := a.GetRewards(context.Background(), uint64(head.FinalizedEpoch))
+		if err != nil {
+			log.Error("could not get rewards and balances", err)
+			time.Sleep(30 * time.Second)
+			continue
+		}
+
+		prometheus.DepositedAmount.Set(float64(depositedAmount.Uint64()))
+		prometheus.CumulativeRewards.Set(float64(cumulativeRewards.Uint64()))
+
+		log.WithFields(log.Fields{
+			"Epoch":             uint64(head.FinalizedEpoch),
+			"DepositedAmount":   depositedAmount.Uint64(),
+			"CumulativeRewards": cumulativeRewards.Uint64(),
+		}).Info("Rewards/Balances:")
+		lastEpoch = uint64(head.FinalizedEpoch)
+
+		// Do not fetch every epoch. For a large number of validators it would be too much
+		// TODO: Set as config parameter
+		time.Sleep(30 * 60 * time.Second)
+	}
 }
 
 func (a *Metrics) GetRewards(ctx context.Context, epoch uint64) (*big.Int, *big.Int, error) {
@@ -96,8 +94,8 @@ func (a *Metrics) GetBalances(ctx context.Context, epoch uint64) ([]*ethpb.Valid
 
 		balances = append(balances, resp.Balances...)
 
-    // TODO: Add debug traces
-    //log.Info("NextPageToken: ", resp.NextPageToken, " length: ", len(resp.Balances))
+		// TODO: Add debug traces
+		//log.Info("NextPageToken: ", resp.NextPageToken, " length: ", len(resp.Balances))
 
 		if resp.NextPageToken == "" {
 			break

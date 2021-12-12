@@ -39,8 +39,6 @@ type Metrics struct {
 	Slot            uint64
 	valsPerformance *ethpb.ValidatorPerformanceResponse
 	valsStatus      *ethpb.MultipleValidatorStatusResponse
-	duties          *ethpb.DutiesResponse
-	blocks          *ethpb.ListBeaconBlocksResponse
 }
 
 func NewMetrics(
@@ -92,9 +90,9 @@ func NewMetrics(
 }
 
 func (a *Metrics) Run() {
-	a.StreamDuties()
-	a.StreamRewards()
-	a.StreamValidatorPerformance()
+	go a.StreamDuties()
+	go a.StreamRewards()
+	go a.StreamValidatorPerformance()
 
 	go func() {
 		for {

@@ -19,45 +19,49 @@ type Duty struct {
 // Continuously reports scheduled and fulfilled duties for the validators for
 // the latest finalized epoch
 func (a *Metrics) StreamDuties() {
-	go func() {
-		lastEpoch := uint64(0)
-		for {
-			if a.activeKeys == nil {
-				log.Warn("No active keys to get duties")
-				time.Sleep(10 * time.Second)
-				continue
-			}
-
-			head, err := GetChainHead(context.Background(), a.beaconChainClient)
-			if err != nil {
-				log.Error("error getting chain head: ", err)
-			}
-			if uint64(head.FinalizedEpoch) <= lastEpoch {
-				time.Sleep(5 * time.Second)
-				continue
-			}
-			log.Info("Fetching duties for epoch: ", head.FinalizedEpoch)
-			err = a.FetchDuties(context.Background(), uint64(head.FinalizedEpoch))
-			if err != nil {
-				log.Error("could not get duties: ", err)
-				continue
-			}
-			nOfScheduledBlocks, nOfProposedBlocks := a.getProposalDuties()
-
-			prometheus.NOfScheduledBlocks.Set(float64(nOfScheduledBlocks))
-			prometheus.NOfProposedBlocks.Set(float64(nOfProposedBlocks))
-
-			log.WithFields(log.Fields{
-				"Epoch":           head.FinalizedEpoch,
-				"RequestedDuties": nOfScheduledBlocks,
-				"PerformedDuties": nOfProposedBlocks,
-			}).Info("Block proposals duties:")
-			lastEpoch = uint64(head.FinalizedEpoch)
+	lastEpoch := uint64(0)
+	for {
+		if a.activeKeys == nil {
+			log.Warn("No active keys to get duties")
+			time.Sleep(10 * time.Second)
+			continue
 		}
-	}()
+
+		head, err := GetChainHead(context.Background(), a.beaconChainClient)
+		if err != nil {
+			log.Error("error getting chain head: ", err)
+		}
+		if uint64(head.FinalizedEpoch) <= lastEpoch {
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		log.Info("Fetching duties for epoch: ", head.FinalizedEpoch)
+		duties, blocks, err := a.FetchDuties(context.Background(), uint64(head.FinalizedEpoch))
+		if err != nil {
+			log.Error("could not get duties: ", err)
+			continue
+		}
+		nOfScheduledBlocks, nOfProposedBlocks := a.getProposalDuties(duties, blocks)
+
+		prometheus.NOfScheduledBlocks.Set(float64(nOfScheduledBlocks))
+		prometheus.NOfProposedBlocks.Set(float64(nOfProposedBlocks))
+
+		log.WithFields(log.Fields{
+			"Epoch":           head.FinalizedEpoch,
+			"RequestedDuties": nOfScheduledBlocks,
+			"PerformedDuties": nOfProposedBlocks,
+		}).Info("Block proposals duties:")
+		lastEpoch = uint64(head.FinalizedEpoch)
+	}
 }
 
-func (a *Metrics) FetchDuties(ctx context.Context, epoch uint64) error {
+func (a *Metrics) FetchDuties(
+	ctx context.Context,
+	epoch uint64) (
+	*ethpb.DutiesResponse,
+	*ethpb.ListBeaconBlocksResponse,
+	error) {
+
 	dutReq := &ethpb.DutiesRequest{
 		Epoch:      ethTypes.Epoch(epoch),
 		PublicKeys: a.activeKeys,
@@ -68,10 +72,8 @@ func (a *Metrics) FetchDuties(ctx context.Context, epoch uint64) error {
 	duties, err := a.prysmConcurrent.ParalelGetDuties(ctx, dutReq, chunkSize)
 
 	if err != nil {
-		return errors.Wrap(err, "could not get duties")
+		return nil, nil, errors.Wrap(err, "could not get duties")
 	}
-
-	a.duties = duties
 
 	// Get the blocks in the current epoch
 	blocks, err := a.beaconChainClient.ListBeaconBlocks(ctx, &ethpb.ListBlocksRequest{
@@ -81,17 +83,19 @@ func (a *Metrics) FetchDuties(ctx context.Context, epoch uint64) error {
 	})
 
 	if err != nil {
-		return errors.Wrap(err, "could not get blocks")
+		return nil, nil, errors.Wrap(err, "could not get blocks")
 	}
-	a.blocks = blocks
 
-	return nil
+	return duties, blocks, nil
 }
 
 // Returns the number of duties in an epoch for all our validators and the number
 // of performed proposals
-func (a *Metrics) getProposalDuties() (uint64, uint64) {
-	if a.duties == nil {
+func (a *Metrics) getProposalDuties(
+	duties *ethpb.DutiesResponse,
+	blocks *ethpb.ListBeaconBlocksResponse) (uint64, uint64) {
+
+	if duties == nil {
 		log.Warn("No data is available to calculate the duties")
 		return 0, 0
 	}
@@ -100,16 +104,16 @@ func (a *Metrics) getProposalDuties() (uint64, uint64) {
 	proposalDuties := make([]Duty, 0)
 
 	// Scan all duties in the given epoch
-	for i := range a.duties.CurrentEpochDuties {
+	for i := range duties.CurrentEpochDuties {
 		// If there are any proposal duties append them
-		if len(a.duties.CurrentEpochDuties[i].ProposerSlots) > 0 {
+		if len(duties.CurrentEpochDuties[i].ProposerSlots) > 0 {
 			// Pub Key is also available res.CurrentEpochDuties[i].PublicKey
-			valIndex := uint64(a.duties.CurrentEpochDuties[i].ValidatorIndex)
+			valIndex := uint64(duties.CurrentEpochDuties[i].ValidatorIndex)
 			// Most likely there will be only a single proposal per epoch
-			for _, propSlot := range a.duties.CurrentEpochDuties[i].ProposerSlots {
+			for _, propSlot := range duties.CurrentEpochDuties[i].ProposerSlots {
 				proposalDuties = append(proposalDuties, Duty{valIndex, propSlot})
 				log.WithFields(log.Fields{
-					"PublicKey": fmt.Sprintf("%x", a.duties.CurrentEpochDuties[i].PublicKey),
+					"PublicKey": fmt.Sprintf("%x", duties.CurrentEpochDuties[i].PublicKey),
 					"ValIndex":  valIndex,
 					"Slot":      propSlot,
 					"Epoch":     uint64(propSlot) % a.slotsInEpoch,
@@ -128,7 +132,7 @@ func (a *Metrics) getProposalDuties() (uint64, uint64) {
 	// Iterate our validator proposal duties
 	for _, duty := range proposalDuties {
 		// Iterate all blocks and check if we proposed the ones we should
-		for _, block := range a.blocks.BlockContainers {
+		for _, block := range blocks.BlockContainers {
 			propIndex, slot, graffiti := getBlockParams(block)
 			// If the block at the slot was proposed by us (valIndex)
 			if duty.valIndex == propIndex && duty.slot == slot {
