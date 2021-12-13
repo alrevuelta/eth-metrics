@@ -15,11 +15,18 @@ func (a *Metrics) StreamDeposits() {
 		pubKeysDeposited, err := a.theGraph.GetAllDepositedKeys()
 		if err != nil {
 			log.Error(err)
-			time.Sleep(60 * 10 * time.Second)
+			time.Sleep(10 * 60 * time.Second)
 			continue
 		}
-		log.Info("Number of deposited keys: ", len(pubKeysDeposited))
 		a.depositedKeys = pubKeysDeposited
+
+		log.WithFields(log.Fields{
+			"DepositedValidators": len(pubKeysDeposited),
+			// TODO: Print epoch
+			//"Slot":     slot,
+			//"Epoch":    uint64(slot) % a.slotsInEpoch,
+		}).Info("Deposits:")
+
 		prometheus.NOfDepositedValidators.Set(float64(len(pubKeysDeposited)))
 		time.Sleep(60 * 60 * time.Second)
 	}

@@ -26,7 +26,6 @@ func (a *Metrics) StreamValidatorStatus() {
 			time.Sleep(10 * time.Second)
 			continue
 		}
-		a.valsStatus = valsStatus
 
 		// TODO: Get other status
 
@@ -42,6 +41,12 @@ func (a *Metrics) StreamValidatorStatus() {
 
 		prometheus.NOfValidators.Set(float64(len(a.activeKeys)))
 		// TODO: Other status (slashed, etc)
+		log.WithFields(log.Fields{
+			"ActiveValidators":  len(a.activeKeys),
+			"SlashedValidators": "TODO",
+			"ExitingValidators": "TODO",
+			"OtherStates":       "TODO",
+		}).Info("Validator Status:")
 
 		time.Sleep(6 * 60 * time.Second)
 	}

@@ -20,7 +20,7 @@ func (a *Metrics) StreamValidatorPerformance() {
 		defer cancel()
 
 		// Fetch needed data to run the metrics
-		newData, err := a.FetchValidatorPerformance(ctx)
+		valsPerformance, newData, err := a.FetchValidatorPerformance(ctx)
 		if err != nil {
 			log.WithError(err).Warn("Failed to fetch metrics data")
 			continue
@@ -31,8 +31,8 @@ func (a *Metrics) StreamValidatorPerformance() {
 		}
 
 		// Calculate the metrics
-		nOfTotalVotes, nOfIncorrectSource, nOfIncorrectTarget, nOfIncorrectHead := a.getIncorrectAttestations()
-		nOfValsWithDecreasedBalance, nOfValidators := a.getNumOfBalanceDecreasedVals()
+		nOfTotalVotes, nOfIncorrectSource, nOfIncorrectTarget, nOfIncorrectHead := a.getIncorrectAttestations(valsPerformance)
+		nOfValsWithDecreasedBalance, nOfValidators := a.getNumOfBalanceDecreasedVals(valsPerformance)
 		balanceDecreasedPercent := (float64(nOfValsWithDecreasedBalance) / float64(nOfValidators)) * 100
 
 		// Log the metrics
@@ -47,14 +47,6 @@ func (a *Metrics) StreamValidatorPerformance() {
 			"nOfIncorrectTarget": nOfIncorrectTarget,
 			"nOfIncorrectHead":   nOfIncorrectHead,
 		}).Info("Incorrect voting:")
-
-		logEpochSlot.WithFields(log.Fields{
-			"ActiveValidators":    len(a.activeKeys),
-			"DepositedValidators": len(a.depositedKeys),
-			"SlashedValidators":   "TODO",
-			"ExitingValidators":   "TODO",
-			"OtherStates":         "TODO",
-		}).Info("Validator Status:")
 
 		logEpochSlot.WithFields(log.Fields{
 			"PercentIncorrectSource": (float64(nOfIncorrectSource) / float64(nOfTotalVotes)) * 100,
@@ -81,10 +73,10 @@ func (a *Metrics) StreamValidatorPerformance() {
 //that not all request accepts the epoch as input, so this function takes
 //care of synching with the beacon so that all fetched data refers to the same
 //epoch
-func (a *Metrics) FetchValidatorPerformance(ctx context.Context) (bool, error) {
+func (a *Metrics) FetchValidatorPerformance(ctx context.Context) (*ethpb.ValidatorPerformanceResponse, bool, error) {
 	head, err := GetChainHead(ctx, a.beaconChainClient)
 	if err != nil {
-		return false, errors.Wrap(err, "error getting chain head")
+		return nil, false, errors.Wrap(err, "error getting chain head")
 	}
 
 	// Run metrics in already completed epochs
@@ -96,18 +88,18 @@ func (a *Metrics) FetchValidatorPerformance(ctx context.Context) (bool, error) {
 	if a.depositedKeys == nil {
 		log.Warn("No active keys to get vals performance")
 		time.Sleep(30 * time.Second)
-		return false, nil
+		return nil, false, nil
 	}
 
 	// Wait until the last slot to ensure all attestations are included
 	if a.Epoch >= metricsEpoch || !slots.IsEpochEnd(head.HeadSlot) {
-		return false, nil
+		return nil, false, nil
 	}
 
 	slotTime, err := slots.ToTime(uint64(a.genesisSeconds), ethTypes.Slot(head.HeadSlot+1))
 
 	if err != nil {
-		return false, errors.Wrap(err, "could not get next slot time")
+		return nil, false, errors.Wrap(err, "could not get next slot time")
 	}
 
 	// Set as deadline the begining of the first slot of the next epoch
@@ -130,56 +122,54 @@ func (a *Metrics) FetchValidatorPerformance(ctx context.Context) (bool, error) {
 
 	valsPerformance, err := a.beaconChainClient.GetValidatorPerformance(ctx, req)
 	if err != nil {
-		return false, errors.Wrap(err, "could not get validator performance from beacon client")
+		return nil, false, errors.Wrap(err, "could not get validator performance from beacon client")
 	}
-
-	a.valsPerformance = valsPerformance
 
 	for i := range valsPerformance.MissingValidators {
 		log.WithFields(log.Fields{
 			"Epoch":   a.Epoch,
-			"Address": hex.EncodeToString(a.valsPerformance.MissingValidators[i]),
+			"Address": hex.EncodeToString(valsPerformance.MissingValidators[i]),
 		}).Warn("Validator performance not found in beacon chain")
 	}
 
 	log.Info("Remaining time for next slot: ", ctx)
 
-	return true, nil
+	return valsPerformance, true, nil
 }
 
 // Gets the total number of votes and the incorrect ones
 // The source is the attestation itself
 // https://pintail.xyz/posts/validator-rewards-in-practice/?s=03#attestation-efficiency
-func (a *Metrics) getIncorrectAttestations() (uint64, uint64, uint64, uint64) {
+func (a *Metrics) getIncorrectAttestations(valsPerformance *ethpb.ValidatorPerformanceResponse) (uint64, uint64, uint64, uint64) {
 	nOfIncorrectSource := uint64(0)
 	nOfIncorrectTarget := uint64(0)
 	nOfIncorrectHead := uint64(0)
-	for i := range a.valsPerformance.PublicKeys {
-		nOfIncorrectSource += BoolToUint64(!a.valsPerformance.CorrectlyVotedSource[i])
-		nOfIncorrectTarget += BoolToUint64(!a.valsPerformance.CorrectlyVotedTarget[i])
-		nOfIncorrectHead += BoolToUint64(!a.valsPerformance.CorrectlyVotedHead[i])
+	for i := range valsPerformance.PublicKeys {
+		nOfIncorrectSource += BoolToUint64(!valsPerformance.CorrectlyVotedSource[i])
+		nOfIncorrectTarget += BoolToUint64(!valsPerformance.CorrectlyVotedTarget[i])
+		nOfIncorrectHead += BoolToUint64(!valsPerformance.CorrectlyVotedHead[i])
 		// since missing source is the most severe, log it
-		if !a.valsPerformance.CorrectlyVotedSource[i] {
-			log.Info("Key that missed the attestation: ", hex.EncodeToString(a.valsPerformance.PublicKeys[i]), "--", a.valsPerformance.CorrectlyVotedSource[i], "--", a.valsPerformance.BalancesAfterEpochTransition[i])
+		if !valsPerformance.CorrectlyVotedSource[i] {
+			log.Info("Key that missed the attestation: ", hex.EncodeToString(valsPerformance.PublicKeys[i]), "--", valsPerformance.CorrectlyVotedSource[i], "--", valsPerformance.BalancesAfterEpochTransition[i])
 		}
 	}
 
 	// Each validator contains three votes: source, target and head
-	nOfTotalVotes := uint64(len(a.valsPerformance.PublicKeys)) * 3
+	nOfTotalVotes := uint64(len(valsPerformance.PublicKeys)) * 3
 
 	return nOfTotalVotes, nOfIncorrectSource, nOfIncorrectTarget, nOfIncorrectHead
 }
 
 // Gets the total number of validators and the ones that decreased in value
-func (a *Metrics) getNumOfBalanceDecreasedVals() (uint64, uint64) {
+func (a *Metrics) getNumOfBalanceDecreasedVals(valsPerformance *ethpb.ValidatorPerformanceResponse) (uint64, uint64) {
 	nOfValsWithDecreasedBalance := uint64(0)
-	for i := range a.valsPerformance.PublicKeys {
-		if a.valsPerformance.BalancesAfterEpochTransition[i] < a.valsPerformance.BalancesBeforeEpochTransition[i] {
-			log.Info("Key with decr balance: ", hex.EncodeToString(a.valsPerformance.PublicKeys[i]), "--", a.valsPerformance.BalancesBeforeEpochTransition[i], "--", a.valsPerformance.BalancesAfterEpochTransition[i])
+	for i := range valsPerformance.PublicKeys {
+		if valsPerformance.BalancesAfterEpochTransition[i] < valsPerformance.BalancesBeforeEpochTransition[i] {
+			log.Info("Key with decr balance: ", hex.EncodeToString(valsPerformance.PublicKeys[i]), "--", valsPerformance.BalancesBeforeEpochTransition[i], "--", valsPerformance.BalancesAfterEpochTransition[i])
 			nOfValsWithDecreasedBalance++
 		}
 	}
-	nOfValidators := uint64(len(a.valsPerformance.PublicKeys))
+	nOfValidators := uint64(len(valsPerformance.PublicKeys))
 
 	return nOfValsWithDecreasedBalance, nOfValidators
 }

@@ -33,10 +33,8 @@ type Metrics struct {
 	theGraph      *thegraph.Thegraph
 
 	// Slot and epoch and its raw data
-	Epoch           uint64
-	Slot            uint64
-	valsPerformance *ethpb.ValidatorPerformanceResponse
-	valsStatus      *ethpb.MultipleValidatorStatusResponse
+	Epoch uint64
+	Slot  uint64
 }
 
 func NewMetrics(
