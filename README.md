@@ -30,6 +30,14 @@ go build
 
 ## Usage
 
+Note that the docker image is publicly available and can be fetched as follows:
+
+```console
+docker pull alrevuelta/eth-pools-metrics:latest
+```
+
+The following flags are available:
+
 ```console
 $ ./eth-pools-metrics --help
 Usage of ./eth-pools-metrics:
