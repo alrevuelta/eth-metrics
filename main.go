@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+// TODO: Bump automatically with -ldflags
+// go build -v -ldflags="-X 'main.ReleaseVersion=x.y.z'"
+var ReleaseVersion = "0.0.1"
+
 func main() {
 	config, err := NewCliConfig()
 	if err != nil {

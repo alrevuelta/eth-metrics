@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	log "github.com/sirupsen/logrus"
+	"os"
 )
 
 type Config struct {
@@ -36,8 +37,14 @@ func NewCliConfig() (*Config, error) {
 	var network = flag.String("network", "mainnet", "Ethereum 2.0 network mainnet|prater|pyrmont")
 	var beaconRpcEndpoint = flag.String("beacon-rpc-endpoint", "localhost:4000", "Address:Port of a eth2 beacon node endpoint")
 	var prometheusPort = flag.Int("prometheus-port", 9500, "Prometheus port to listen to")
+	var version = flag.Bool("version", false, "Prints the release version and exits")
 
 	flag.Parse()
+
+	if *version {
+		log.Info("Version: ", ReleaseVersion)
+		os.Exit(0)
+	}
 
 	conf := &Config{
 		Network:               *network,
