@@ -1,0 +1,81 @@
+package pools
+
+// Eth1 Addresses used to identify the pools in the deposit contract
+var PoolsAddresses = map[string][]string{
+	"kraken": {
+		"0xa40dfee99e1c85dc97fdc594b16a460717838703",
+		"0x631c2d8d0d7a80824e602a79800a98d93e909a9e",
+	},
+	"binance": {
+		"0xb53f8c05e52e3c49283528aa24f3494375325931",
+		"0x2f47a1c2db4a3b78cda44eade915c3b19107ddcc",
+		"0x82361cb56a94c803593fde178bab2f345178e901",
+		"0x0b75ef3fc3394548efed0d784afa32de81ad4923",
+		"0xeae401546b85ae9b8bf4b81b4fb5c4337f079c09",
+		"0x73483496eb9317ce4559f707c06b9377627a61b0",
+		"0x32c96d17d81615789357160b41da2ef8b712eba8",
+		"0xd1366d60d65bdfc92e5a5925fc4698a22e04e8c2",
+		"0x90ba5b3a3e9353f713bb873a44f2396429c1dd27",
+		"0xf17aced3c7a8daa29ebb90db8d1b6efd8c364a18",
+	},
+	"lido": {
+		"0x00444797ba158a7bdb8302e72da98dcbccef0fbc",
+		"0xa76a7d0d06754e4fc4941519d1f9d56fd9f8d53b",
+		"0xdd19274b614b5ecacf493bc43c380ef6b8dfb56c",
+		"0xe19fc582dd93fa876cf4061eb5456f310144f57b",
+		"0xfbec500765ea318658de235bf8219eeb1c8fa540",
+	},
+	"huobi": {
+		"0x194bd70b59491ce1310ea0bceabdb6c23ac9d5b2",
+		"0xb73f4d4e99f65ec4b16b684e44f81aeca5ba2b7c",
+	},
+	"bitcoinsuisse": {
+		"0xc2288b408dc872a1546f13e6ebfa9c94998316a2",
+		"0xdd9663bd979f1ab1bada85e1bc7d7f13cafe71f8",
+		"0x622de9bb9ff8907414785a633097db438f9a2d86",
+		"0x3837ea2279b8e5c260a78f5f4181b783bbe76a8b",
+		"0xec70e3c8afe212039c3f6a2df1c798003bf7cfe9",
+		"0x2a7077399b3e90f5392d55a1dc7046ad8d152348",
+	},
+	"stakedus": {
+		"0x46436f1fa2f9d77b146cde18d545ae3ed28057c1",
+		"0x3fb9d44bc83d0da2902e6230aed42fc219f8a426",
+		"0x9acdb9698f65f2eadcc2813706f83c70a482b3e5",
+		"0x98f8407c1dd18d6ea2ecc48fdf772665ac5323c1",
+		"0x224fc41805d007775260bcb5f9146ecd5c3d9495",
+		"0x7e9f3ca26570661b6aac389b92163b21124e6e46",
+		"0x0a6ef7ee49df7ebce0cc76a1f7f53ab261f2fc83",
+	},
+	"stakefish": {
+		"0x61c808d82a3ac53231750dadc13c777b59310bd9",
+		"0x4c7052546a9e38a72b9731e334d8100b45e88cbc",
+		"0x1fa953ef0c089b342656194e569d2bc0de698add",
+		"0x4e017a192177abdae99250b6a0809dd76c856767",
+		"0xaa5104d696a3c8ab61331c87d9294c0ae1f5aa51",
+	},
+	"stkr": {
+		"0x4069d8a3de3a72eca86ca5e0a4b94619085e7362",
+	},
+	"bitfinex": {
+		"0x2b1df729083f6416861445d8aaac04ebdcd4a848",
+	},
+	"okex": {
+		"0x5a0036bcab4501e70f086c634e2958a8beae3a11",
+	},
+	"stakewise": {
+		"0x102f792028a56f13d6d99ed4ec8a6125de98582a",
+		"0x5fc60576b92c5ce5c341c43e3b2866eb9e0cddd1",
+	},
+	"piedao": {
+		"0x66827bcd635f2bb1779d68c46aeb16541bca6ba8",
+	},
+	"wexexchange": {
+		"0xbb84d966c09264ce9a2104a4a20bb378369986db",
+	},
+	"kucoin": {
+		"0xd6216fc19db775df9774a6e33526131da7d19a2c",
+	},
+	"poloniex": {
+		"0x0038598ecb3b308ebc6c6e2c635bacaa3c5298a3",
+	},
+}

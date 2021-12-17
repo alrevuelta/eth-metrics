@@ -9,8 +9,11 @@ import (
 )
 
 type StatusCount struct {
-	// custom field
+	// custom field: vals with active duties
 	Validating uint64
+
+	// TODO: num of slashed validators
+	// note that after slashing->exited
 
 	// maps 1:1 with eth2 spec status
 	Unknown            uint64

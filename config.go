@@ -1,6 +1,7 @@
 package main
 
 import (
+	"eth-pools-metrics/pools" // TODO: Set github prefix when released
 	"flag"
 	log "github.com/sirupsen/logrus"
 	"os"
@@ -38,12 +39,27 @@ func NewCliConfig() (*Config, error) {
 	var beaconRpcEndpoint = flag.String("beacon-rpc-endpoint", "localhost:4000", "Address:Port of a eth2 beacon node endpoint")
 	var prometheusPort = flag.Int("prometheus-port", 9500, "Prometheus port to listen to")
 	var version = flag.Bool("version", false, "Prints the release version and exits")
-
+	var poolName = flag.String("pool-name", "required", "Name of the pool being monitored. If known, addreses are loaded by default (see known pools)")
 	flag.Parse()
 
 	if *version {
 		log.Info("Version: ", ReleaseVersion)
 		os.Exit(0)
+	}
+
+	if *poolName == "required" {
+		log.Fatal("pool-name flag is required")
+	}
+
+	// If the pool name is known, override from-address
+	preLoadedAddresses := pools.PoolsAddresses[*poolName]
+	if len(preLoadedAddresses) != 0 {
+		log.Info("The pool-name is known, overriding from-address")
+		fromAddress = preLoadedAddresses
+	} else {
+		if len(fromAddress) == 0 && len(withdrawalCredentials) == 0 {
+			log.Fatal("Either withdrawal-credentials or from-address must be populated")
+		}
 	}
 
 	conf := &Config{
