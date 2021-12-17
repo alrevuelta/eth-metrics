@@ -98,25 +98,26 @@ func getStatusCount(
 
 	statusCount := StatusCount{}
 	for i := range statusResponse.PublicKeys {
-		if isKeyValidating(statusResponse.Statuses[i].Status) {
+		status := statusResponse.Statuses[i].Status
+		if isKeyValidating(status) {
 			statusCount.Validating++
-		} else if statusResponse.Statuses[i].Status == ethpb.ValidatorStatus_UNKNOWN_STATUS {
+		} else if status == ethpb.ValidatorStatus_UNKNOWN_STATUS {
 			statusCount.Unknown++
-		} else if statusResponse.Statuses[i].Status == ethpb.ValidatorStatus_DEPOSITED {
+		} else if status == ethpb.ValidatorStatus_DEPOSITED {
 			statusCount.Deposited++
-		} else if statusResponse.Statuses[i].Status == ethpb.ValidatorStatus_PENDING {
+		} else if status == ethpb.ValidatorStatus_PENDING {
 			statusCount.Pending++
-		} else if statusResponse.Statuses[i].Status == ethpb.ValidatorStatus_ACTIVE {
+		} else if status == ethpb.ValidatorStatus_ACTIVE {
 			statusCount.Active++
-		} else if statusResponse.Statuses[i].Status == ethpb.ValidatorStatus_EXITING {
+		} else if status == ethpb.ValidatorStatus_EXITING {
 			statusCount.Exiting++
-		} else if statusResponse.Statuses[i].Status == ethpb.ValidatorStatus_SLASHING {
+		} else if status == ethpb.ValidatorStatus_SLASHING {
 			statusCount.Slashing++
-		} else if statusResponse.Statuses[i].Status == ethpb.ValidatorStatus_EXITED {
+		} else if status == ethpb.ValidatorStatus_EXITED {
 			statusCount.Exited++
-		} else if statusResponse.Statuses[i].Status == ethpb.ValidatorStatus_INVALID {
+		} else if status == ethpb.ValidatorStatus_INVALID {
 			statusCount.Invalid++
-		} else if statusResponse.Statuses[i].Status == ethpb.ValidatorStatus_PARTIALLY_DEPOSITED {
+		} else if status == ethpb.ValidatorStatus_PARTIALLY_DEPOSITED {
 			statusCount.PartiallyDeposited++
 		}
 	}

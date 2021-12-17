@@ -14,7 +14,7 @@ import (
 func (a *Metrics) StreamRewards() {
 	lastEpoch := uint64(0)
 	for {
-		if a.validatingKeys == nil {
+		if a.depositedKeys == nil {
 			log.Warn("No active keys to calculate the rewards")
 			time.Sleep(30 * time.Second)
 			continue
@@ -66,9 +66,7 @@ func (a *Metrics) GetRewards(ctx context.Context, epoch uint64) (*big.Int, *big.
 	totalDeposits := big.NewInt(0)
 	for _, b := range balances {
 		status := ethpb.ValidatorStatus(ethpb.ValidatorStatus_value[b.Status])
-		if status == ethpb.ValidatorStatus_ACTIVE ||
-			status == ethpb.ValidatorStatus_EXITING ||
-			status == ethpb.ValidatorStatus_SLASHING {
+		if isEligibleForRewards(status) {
 			deposit := big.NewInt(0).SetUint64(depositInGigaWei)
 			balance := big.NewInt(0).SetUint64(b.Balance)
 			reward := big.NewInt(0).Sub(balance, deposit)
@@ -94,9 +92,6 @@ func (a *Metrics) GetBalances(ctx context.Context, epoch uint64) ([]*ethpb.Valid
 
 		balances = append(balances, resp.Balances...)
 
-		// TODO: Add debug traces
-		//log.Info("NextPageToken: ", resp.NextPageToken, " length: ", len(resp.Balances))
-
 		if resp.NextPageToken == "" {
 			break
 		} else {
@@ -104,4 +99,16 @@ func (a *Metrics) GetBalances(ctx context.Context, epoch uint64) ([]*ethpb.Valid
 		}
 	}
 	return balances, nil
+}
+
+// validator statuses that may contain rewards
+// Dec 2021: once withdrawals are enabled, this has to be revisited
+func isEligibleForRewards(status ethpb.ValidatorStatus) bool {
+	if status == ethpb.ValidatorStatus_ACTIVE ||
+		status == ethpb.ValidatorStatus_EXITING ||
+		status == ethpb.ValidatorStatus_SLASHING ||
+		status == ethpb.ValidatorStatus_EXITED {
+		return true
+	}
+	return false
 }
