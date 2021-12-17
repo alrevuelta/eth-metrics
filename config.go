@@ -39,7 +39,7 @@ func NewCliConfig() (*Config, error) {
 	var beaconRpcEndpoint = flag.String("beacon-rpc-endpoint", "localhost:4000", "Address:Port of a eth2 beacon node endpoint")
 	var prometheusPort = flag.Int("prometheus-port", 9500, "Prometheus port to listen to")
 	var version = flag.Bool("version", false, "Prints the release version and exits")
-	var poolName = flag.String("pool-name", "required", "Name of the pool being monitored. If known, addreses are loaded by default (see known pools)")
+	var poolName = flag.String("pool-name", "required", "Name of the pool being monitored. If known, addresses are loaded by default (see known pools)")
 	flag.Parse()
 
 	if *version {
