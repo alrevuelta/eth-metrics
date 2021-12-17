@@ -170,7 +170,6 @@ var (
 		},
 	)
 
-	// TODO: Use to check extra deposits
 	DepositedAmount = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: "validators",
