@@ -55,7 +55,7 @@ func (a *Metrics) StreamValidatorPerformance() {
 		}).Info("Incorrect voting percents:")
 
 		logEpochSlot.WithFields(log.Fields{
-			"nOfValidators":               len(a.activeKeys),
+			"nOfValidators":               len(a.validatingKeys),
 			"nOfValsWithDecreasedBalance": nOfValsWithDecreasedBalance,
 			"balanceDecreasedPercent":     balanceDecreasedPercent,
 		}).Info("Balance decreased:")
@@ -85,7 +85,7 @@ func (a *Metrics) FetchValidatorPerformance(ctx context.Context) (*ethpb.Validat
 
 	log.Info("Slot: ", ethTypes.Slot(metricsSlot)%params.BeaconConfig().SlotsPerEpoch)
 
-	if a.depositedKeys == nil {
+	if a.validatingKeys == nil {
 		log.Warn("No active keys to get vals performance")
 		time.Sleep(30 * time.Second)
 		return nil, false, nil
@@ -117,7 +117,7 @@ func (a *Metrics) FetchValidatorPerformance(ctx context.Context) (*ethpb.Validat
 	}).Info("Fetching new validators info")
 
 	req := &ethpb.ValidatorPerformanceRequest{
-		PublicKeys: a.activeKeys,
+		PublicKeys: a.validatingKeys,
 	}
 
 	valsPerformance, err := a.beaconChainClient.GetValidatorPerformance(ctx, req)

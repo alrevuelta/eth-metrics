@@ -27,10 +27,10 @@ type Metrics struct {
 	genesisSeconds    uint64
 	slotsInEpoch      uint64
 
-	depositedKeys [][]byte
-	activeKeys    [][]byte
-	withCredList  []string
-	theGraph      *thegraph.Thegraph
+	depositedKeys  [][]byte
+	validatingKeys [][]byte
+	withCredList   []string
+	theGraph       *thegraph.Thegraph
 
 	// Slot and epoch and its raw data
 	Epoch uint64

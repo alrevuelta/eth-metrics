@@ -21,7 +21,7 @@ type Duty struct {
 func (a *Metrics) StreamDuties() {
 	lastEpoch := uint64(0)
 	for {
-		if a.activeKeys == nil {
+		if a.validatingKeys == nil {
 			log.Warn("No active keys to get duties")
 			time.Sleep(10 * time.Second)
 			continue
@@ -64,7 +64,7 @@ func (a *Metrics) FetchDuties(
 
 	dutReq := &ethpb.DutiesRequest{
 		Epoch:      ethTypes.Epoch(epoch),
-		PublicKeys: a.activeKeys,
+		PublicKeys: a.validatingKeys,
 	}
 
 	// TODO: Move this

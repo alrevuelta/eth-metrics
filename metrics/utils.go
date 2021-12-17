@@ -16,16 +16,6 @@ func GetChainHead(ctx context.Context, beaconChainClient ethpb.BeaconChainClient
 	return chainHead, nil
 }
 
-func FilterActiveValidators(vals *ethpb.MultipleValidatorStatusResponse) [][]byte {
-	activeKeys := make([][]byte, 0)
-	for i := range vals.PublicKeys {
-		if IsKeyActive(vals.Statuses[i].Status) {
-			activeKeys = append(activeKeys, vals.PublicKeys[i])
-		}
-	}
-	return activeKeys
-}
-
 func BoolToUint64(in bool) uint64 {
 	if in {
 		return uint64(1)
@@ -55,13 +45,4 @@ func GetBeaconConfig(ctx context.Context, beaconChainClient ethpb.BeaconChainCli
 		return nil, errors.Wrap(err, "error getting beacon config")
 	}
 	return beaconConfig, nil
-}
-
-func IsKeyActive(status ethpb.ValidatorStatus) bool {
-	if status == ethpb.ValidatorStatus_ACTIVE ||
-		status == ethpb.ValidatorStatus_EXITING ||
-		status == ethpb.ValidatorStatus_SLASHING {
-		return true
-	}
-	return false
 }

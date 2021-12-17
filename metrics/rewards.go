@@ -14,7 +14,7 @@ import (
 func (a *Metrics) StreamRewards() {
 	lastEpoch := uint64(0)
 	for {
-		if a.activeKeys == nil {
+		if a.validatingKeys == nil {
 			log.Warn("No active keys to calculate the rewards")
 			time.Sleep(30 * time.Second)
 			continue
@@ -82,7 +82,7 @@ func (a *Metrics) GetRewards(ctx context.Context, epoch uint64) (*big.Int, *big.
 func (a *Metrics) GetBalances(ctx context.Context, epoch uint64) ([]*ethpb.ValidatorBalances_Balance, error) {
 	request := ethpb.ListValidatorBalancesRequest{
 		QueryFilter: &ethpb.ListValidatorBalancesRequest_Epoch{ethTypes.Epoch(epoch)},
-		PublicKeys:  a.activeKeys,
+		PublicKeys:  a.validatingKeys,
 	}
 
 	balances := make([]*ethpb.ValidatorBalances_Balance, 0)

@@ -18,11 +18,11 @@ func Run(port int) {
 // TODO: Add the pool before each name
 
 var (
-	NOfValidators = promauto.NewGauge(
+	NOfUnkownValidators = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: "validators",
-			Name:      "number_active_validators",
-			Help:      "Number of active validators among all deposited ones",
+			Name:      "number_unknown_validators",
+			Help:      "Number of unknown validators among all deposited ones",
 		},
 	)
 
@@ -30,7 +30,71 @@ var (
 		prometheus.GaugeOpts{
 			Namespace: "validators",
 			Name:      "number_deposited_validators",
-			Help:      "Number of deposited validators by withdrawal credentials",
+			Help:      "Number of deposited validators for the selected from_address/with_cred",
+		},
+	)
+
+	NOfPendingValidators = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "number_pending_validators",
+			Help:      "Number of pending of activation validators among all deposited ones",
+		},
+	)
+
+	NOfActiveValidators = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "number_active_validators",
+			Help:      "Number of active validators among all deposited ones",
+		},
+	)
+
+	NOfExitingValidators = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "number_exiting_validators",
+			Help:      "Number of exiting validators among all deposited ones",
+		},
+	)
+
+	NOfSlashingValidators = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "number_slashing_validators",
+			Help:      "Number of slashing validators among all deposited ones",
+		},
+	)
+
+	NOfExitedValidators = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "number_exited_validators",
+			Help:      "Number of exited validators among all deposited ones",
+		},
+	)
+
+	NOfInvalidValidators = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "number_invalid_validators",
+			Help:      "Number of invalid validators among all deposited ones",
+		},
+	)
+
+	NOfPartiallyDepositedValidators = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "number_partiallydeposited_validators",
+			Help:      "Number of partially deposited validators among all deposited ones",
+		},
+	)
+
+	NOfValidatingValidators = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "number_validating_validators",
+			Help:      "Number of validating validators with duties among all deposited ones",
 		},
 	)
 
