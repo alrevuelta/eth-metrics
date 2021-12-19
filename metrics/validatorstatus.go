@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-type StatusCount struct {
+type ValidatorStatusMetrics struct {
 	// custom field: vals with active duties
 	Validating uint64
 
@@ -54,25 +54,25 @@ func (a *Metrics) StreamValidatorStatus() {
 		a.validatingKeys = validatingKeys
 
 		// For other status we just want the count
-		statusCount := getStatusCount(context.Background(), valsStatus)
-		logStatus(statusCount)
-		setPrometheusStatusMetrics(statusCount)
+		metrics := getValidatorStatusMetrics(context.Background(), valsStatus)
+		logValidatorStatus(metrics)
+		setPrometheusValidatorStatus(metrics)
 
 		time.Sleep(6 * 60 * time.Second)
 	}
 }
 
-func setPrometheusStatusMetrics(statusCount StatusCount) {
-	prometheus.NOfValidatingValidators.Set(float64(statusCount.Validating))
-	prometheus.NOfUnkownValidators.Set(float64(statusCount.Unknown))
-	prometheus.NOfDepositedValidators.Set(float64(statusCount.Deposited))
-	prometheus.NOfPendingValidators.Set(float64(statusCount.Pending))
-	prometheus.NOfActiveValidators.Set(float64(statusCount.Active))
-	prometheus.NOfExitingValidators.Set(float64(statusCount.Exiting))
-	prometheus.NOfSlashingValidators.Set(float64(statusCount.Slashing))
-	prometheus.NOfExitedValidators.Set(float64(statusCount.Exited))
-	prometheus.NOfInvalidValidators.Set(float64(statusCount.Invalid))
-	prometheus.NOfPartiallyDepositedValidators.Set(float64(statusCount.PartiallyDeposited))
+func setPrometheusValidatorStatus(metrics ValidatorStatusMetrics) {
+	prometheus.NOfValidatingValidators.Set(float64(metrics.Validating))
+	prometheus.NOfUnkownValidators.Set(float64(metrics.Unknown))
+	prometheus.NOfDepositedValidators.Set(float64(metrics.Deposited))
+	prometheus.NOfPendingValidators.Set(float64(metrics.Pending))
+	prometheus.NOfActiveValidators.Set(float64(metrics.Active))
+	prometheus.NOfExitingValidators.Set(float64(metrics.Exiting))
+	prometheus.NOfSlashingValidators.Set(float64(metrics.Slashing))
+	prometheus.NOfExitedValidators.Set(float64(metrics.Exited))
+	prometheus.NOfInvalidValidators.Set(float64(metrics.Invalid))
+	prometheus.NOfPartiallyDepositedValidators.Set(float64(metrics.PartiallyDeposited))
 }
 
 func filterValidatingValidators(vals *ethpb.MultipleValidatorStatusResponse) [][]byte {
@@ -95,49 +95,49 @@ func isKeyValidating(status ethpb.ValidatorStatus) bool {
 	return false
 }
 
-func getStatusCount(
+func getValidatorStatusMetrics(
 	ctx context.Context,
-	statusResponse *ethpb.MultipleValidatorStatusResponse) StatusCount {
+	statusResponse *ethpb.MultipleValidatorStatusResponse) ValidatorStatusMetrics {
 
-	statusCount := StatusCount{}
+	metrics := ValidatorStatusMetrics{}
 	for i := range statusResponse.PublicKeys {
 		status := statusResponse.Statuses[i].Status
 		if isKeyValidating(status) {
-			statusCount.Validating++
+			metrics.Validating++
 		} else if status == ethpb.ValidatorStatus_UNKNOWN_STATUS {
-			statusCount.Unknown++
+			metrics.Unknown++
 		} else if status == ethpb.ValidatorStatus_DEPOSITED {
-			statusCount.Deposited++
+			metrics.Deposited++
 		} else if status == ethpb.ValidatorStatus_PENDING {
-			statusCount.Pending++
+			metrics.Pending++
 		} else if status == ethpb.ValidatorStatus_ACTIVE {
-			statusCount.Active++
+			metrics.Active++
 		} else if status == ethpb.ValidatorStatus_EXITING {
-			statusCount.Exiting++
+			metrics.Exiting++
 		} else if status == ethpb.ValidatorStatus_SLASHING {
-			statusCount.Slashing++
+			metrics.Slashing++
 		} else if status == ethpb.ValidatorStatus_EXITED {
-			statusCount.Exited++
+			metrics.Exited++
 		} else if status == ethpb.ValidatorStatus_INVALID {
-			statusCount.Invalid++
+			metrics.Invalid++
 		} else if status == ethpb.ValidatorStatus_PARTIALLY_DEPOSITED {
-			statusCount.PartiallyDeposited++
+			metrics.PartiallyDeposited++
 		}
 	}
-	return statusCount
+	return metrics
 }
 
-func logStatus(statusCount StatusCount) {
+func logValidatorStatus(metrics ValidatorStatusMetrics) {
 	log.WithFields(log.Fields{
-		"Validating":         statusCount.Validating,
-		"Unknown":            statusCount.Unknown,
-		"Deposited":          statusCount.Deposited,
-		"Pending":            statusCount.Pending,
-		"Active":             statusCount.Active,
-		"Exiting":            statusCount.Exiting,
-		"Slashing":           statusCount.Slashing,
-		"Exited":             statusCount.Exited,
-		"Invalid":            statusCount.Invalid,
-		"PartiallyDeposited": statusCount.PartiallyDeposited,
+		"Validating":         metrics.Validating,
+		"Unknown":            metrics.Unknown,
+		"Deposited":          metrics.Deposited,
+		"Pending":            metrics.Pending,
+		"Active":             metrics.Active,
+		"Exiting":            metrics.Exiting,
+		"Slashing":           metrics.Slashing,
+		"Exited":             metrics.Exited,
+		"Invalid":            metrics.Invalid,
+		"PartiallyDeposited": metrics.PartiallyDeposited,
 	}).Info("Validator Status Count:")
 }
