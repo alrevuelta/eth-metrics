@@ -1,6 +1,7 @@
 # eth-pools-metrics
 
 [![Tag](https://img.shields.io/github/tag/alrevuelta/eth-pools-metrics.svg)](https://github.com/alrevuelta/eth-pools-metrics/releases/)
+[![Release](https://github.com/alrevuelta/eth-pools-metrics/actions/workflows/release.yml/badge.svg)](https://github.com/alrevuelta/eth-pools-metrics/actions/workflows/release.yml)
 
 ## Introduction
 
