@@ -186,5 +186,21 @@ var (
 		},
 	)
 
+	EarnedAmountInEpoch = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "earned_amount_in_epoch",
+			Help:      "Earned amount in gwei in the previous epoch transition",
+		},
+	)
+
+	LosedAmountInEpoch = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "losed_amount_in_epoch",
+			Help:      "Losed amount in gwei in the previous epoch transition",
+		},
+	)
+
 	// TODO: Add remaining time for next slot, to monitor perfomance issues
 )

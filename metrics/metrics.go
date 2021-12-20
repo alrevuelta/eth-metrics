@@ -33,6 +33,7 @@ type Metrics struct {
 	theGraph       *thegraph.Thegraph
 
 	// Slot and epoch and its raw data
+	// TODO: Remove, each metric task has its pace
 	Epoch uint64
 	Slot  uint64
 }

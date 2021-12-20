@@ -46,3 +46,9 @@ func GetBeaconConfig(ctx context.Context, beaconChainClient ethpb.BeaconChainCli
 	}
 	return beaconConfig, nil
 }
+
+func ToBytes48(x []byte) [48]byte {
+	var y [48]byte
+	copy(y[:], x)
+	return y
+}
