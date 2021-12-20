@@ -10,6 +10,7 @@ require (
 	github.com/prysmaticlabs/prysm/v2 v2.0.1
 	github.com/sirupsen/logrus v1.6.0
 	github.com/stretchr/testify v1.7.0
+	github.com/superoo7/go-gecko v1.0.0 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	google.golang.org/grpc v1.37.0
 	google.golang.org/protobuf v1.27.1

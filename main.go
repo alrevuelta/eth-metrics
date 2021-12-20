@@ -10,7 +10,7 @@ import (
 
 // TODO: Bump automatically with -ldflags
 // go build -v -ldflags="-X 'main.ReleaseVersion=x.y.z'"
-var ReleaseVersion = "0.0.1"
+var ReleaseVersion = "0.0.3"
 
 func main() {
 	config, err := NewCliConfig()

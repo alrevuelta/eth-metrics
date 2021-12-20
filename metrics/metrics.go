@@ -92,4 +92,5 @@ func (a *Metrics) Run() {
 	go a.StreamDeposits()
 	go a.StreamValidatorPerformance()
 	go a.StreamValidatorStatus()
+	go a.StreamEthPrice()
 }

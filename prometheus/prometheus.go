@@ -202,5 +202,13 @@ var (
 		},
 	)
 
+	EthereumPriceUsd = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "eth_price_usd",
+			Help:      "Ethereum price in usd",
+		},
+	)
+
 	// TODO: Add remaining time for next slot, to monitor perfomance issues
 )
