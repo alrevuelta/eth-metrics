@@ -1,8 +1,8 @@
 package main
 
 import (
-	"eth-pools-metrics/pools" // TODO: Set github prefix when released
 	"flag"
+	"github.com/alrevuelta/eth-pools-metrics/pools"
 	log "github.com/sirupsen/logrus"
 	"os"
 )

@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"eth-pools-metrics/prometheus" // TODO: Set github prefix when released
+	"github.com/alrevuelta/eth-pools-metrics/prometheus"
 	log "github.com/sirupsen/logrus"
 	gecko "github.com/superoo7/go-gecko/v3"
 	"time"

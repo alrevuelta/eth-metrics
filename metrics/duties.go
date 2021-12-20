@@ -2,8 +2,8 @@ package metrics
 
 import (
 	"context"
-	"eth-pools-metrics/prometheus" // TODO: Set github prefix when released
 	"fmt"
+	"github.com/alrevuelta/eth-pools-metrics/prometheus"
 	"github.com/pkg/errors"
 	ethTypes "github.com/prysmaticlabs/eth2-types"
 	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"

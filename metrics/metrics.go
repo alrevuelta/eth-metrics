@@ -2,8 +2,8 @@ package metrics
 
 import (
 	"context"
-	"eth-pools-metrics/prysm-concurrent" // TODO: Use Github prefix when released
-	"eth-pools-metrics/thegraph"         // TODO: Use Github prefix when released
+	"github.com/alrevuelta/eth-pools-metrics/prysm-concurrent"
+	"github.com/alrevuelta/eth-pools-metrics/thegraph"
 	"github.com/pkg/errors"
 	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
 	//log "github.com/sirupsen/logrus"

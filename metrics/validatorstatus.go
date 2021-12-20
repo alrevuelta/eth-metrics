@@ -2,7 +2,7 @@ package metrics
 
 import (
 	"context"
-	"eth-pools-metrics/prometheus" // TODO: Set github prefix when released
+	"github.com/alrevuelta/eth-pools-metrics/prometheus"
 	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	"time"

@@ -3,7 +3,7 @@ package metrics
 import (
 	"context"
 	"encoding/hex"
-	"eth-pools-metrics/prometheus" // TODO: Set github prefix when released
+	"github.com/alrevuelta/eth-pools-metrics/prometheus"
 	"github.com/pkg/errors"
 	ethTypes "github.com/prysmaticlabs/eth2-types"
 	"github.com/prysmaticlabs/prysm/v2/config/params"

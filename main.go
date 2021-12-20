@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"eth-pools-metrics/metrics"    // TODO: Set github prefix when released
-	"eth-pools-metrics/prometheus" // TODO: Set github prefix when released
+	"github.com/alrevuelta/eth-pools-metrics/metrics"
+	"github.com/alrevuelta/eth-pools-metrics/prometheus"
 	log "github.com/sirupsen/logrus"
 	"time"
 )

@@ -1,4 +1,4 @@
-module eth-pools-metrics
+module github.com/alrevuelta/eth-pools-metrics
 
 go 1.15
 
