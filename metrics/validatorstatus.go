@@ -54,7 +54,7 @@ func (a *Metrics) StreamValidatorStatus() {
 		a.validatingKeys = validatingKeys
 
 		// For other status we just want the count
-		metrics := getValidatorStatusMetrics(context.Background(), valsStatus)
+		metrics := getValidatorStatusMetrics(valsStatus)
 		logValidatorStatus(metrics)
 		setPrometheusValidatorStatus(metrics)
 
@@ -96,15 +96,18 @@ func isKeyValidating(status ethpb.ValidatorStatus) bool {
 }
 
 func getValidatorStatusMetrics(
-	ctx context.Context,
 	statusResponse *ethpb.MultipleValidatorStatusResponse) ValidatorStatusMetrics {
 
 	metrics := ValidatorStatusMetrics{}
 	for i := range statusResponse.PublicKeys {
 		status := statusResponse.Statuses[i].Status
+
+		// Note that a validator can be validating and active/exiting
 		if isKeyValidating(status) {
 			metrics.Validating++
-		} else if status == ethpb.ValidatorStatus_UNKNOWN_STATUS {
+		}
+
+		if status == ethpb.ValidatorStatus_UNKNOWN_STATUS {
 			metrics.Unknown++
 		} else if status == ethpb.ValidatorStatus_DEPOSITED {
 			metrics.Deposited++
@@ -122,6 +125,8 @@ func getValidatorStatusMetrics(
 			metrics.Invalid++
 		} else if status == ethpb.ValidatorStatus_PARTIALLY_DEPOSITED {
 			metrics.PartiallyDeposited++
+		} else {
+			log.Warn("Unknown status: ", status)
 		}
 	}
 	return metrics
