@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"github.com/alrevuelta/eth-pools-metrics/prometheus"
+	//"github.com/alrevuelta/eth-pools-metrics/prometheus"
 	log "github.com/sirupsen/logrus"
 	"time"
 )
@@ -27,7 +27,6 @@ func (a *Metrics) StreamDeposits() {
 			//"Epoch":    uint64(slot) % a.slotsInEpoch,
 		}).Info("Deposits:")
 
-		prometheus.NOfDepositedValidators.Set(float64(len(pubKeysDeposited)))
 		time.Sleep(60 * 60 * time.Second)
 	}
 }
