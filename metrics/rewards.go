@@ -11,6 +11,15 @@ import (
 	"time"
 )
 
+const gigaWei = uint64(1_000_000_000)
+const depositInGigaWei = uint64(32) * gigaWei
+
+type RewardsMetrics struct {
+	Epoch             uint64
+	TotalDeposits     *big.Int
+	CumulativeRewards *big.Int
+}
+
 func (a *Metrics) StreamRewards() {
 	lastEpoch := uint64(0)
 	for {
@@ -22,6 +31,7 @@ func (a *Metrics) StreamRewards() {
 		head, err := GetChainHead(context.Background(), a.beaconChainClient)
 		if err != nil {
 			log.Error("error getting chain head", err)
+			continue
 		}
 
 		if uint64(head.FinalizedEpoch) <= lastEpoch {
@@ -31,21 +41,16 @@ func (a *Metrics) StreamRewards() {
 
 		log.Info("Getting rewards for epoch: ", head.FinalizedEpoch)
 
-		cumulativeRewards, depositedAmount, err := a.GetRewards(context.Background(), uint64(head.FinalizedEpoch))
+		metrics, err := a.GetRewards(context.Background(), uint64(head.FinalizedEpoch))
 		if err != nil {
 			log.Error("could not get rewards and balances", err)
 			time.Sleep(30 * time.Second)
 			continue
 		}
 
-		prometheus.DepositedAmount.Set(float64(depositedAmount.Uint64()))
-		prometheus.CumulativeRewards.Set(float64(cumulativeRewards.Uint64()))
+		logRewards(metrics)
+		setPrometheusRewards(metrics)
 
-		log.WithFields(log.Fields{
-			"Epoch":             uint64(head.FinalizedEpoch),
-			"DepositedAmount":   depositedAmount.Uint64(),
-			"CumulativeRewards": cumulativeRewards.Uint64(),
-		}).Info("Rewards/Balances:")
 		lastEpoch = uint64(head.FinalizedEpoch)
 
 		// Do not fetch every epoch. For a large number of validators it would be too much
@@ -54,27 +59,53 @@ func (a *Metrics) StreamRewards() {
 	}
 }
 
-func (a *Metrics) GetRewards(ctx context.Context, epoch uint64) (*big.Int, *big.Int, error) {
+func logRewards(metrics RewardsMetrics) {
+	log.WithFields(log.Fields{
+		"Epoch":             metrics.Epoch,
+		"DepositedAmount":   metrics.TotalDeposits.Uint64(),
+		"CumulativeRewards": metrics.CumulativeRewards.Uint64(),
+	}).Info("Rewards/Balances:")
+}
+
+func setPrometheusRewards(metrics RewardsMetrics) {
+	prometheus.DepositedAmount.Set(float64(metrics.TotalDeposits.Uint64()))
+	prometheus.CumulativeRewards.Set(float64(metrics.CumulativeRewards.Uint64()))
+}
+
+func getRewardsFromBalances(
+	balances []*ethpb.ValidatorBalances_Balance) (*big.Int, *big.Int) {
+	cumulativeRewards := big.NewInt(0)
+	totalDeposits := big.NewInt(0)
+
 	// Nov 2021: Balances - Deposits matches the rewards
 	// but this may change once withdrawals are enabled
-	balances, err := a.GetBalances(ctx, epoch)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "could not get balances from beacon chain")
-	}
-
-	totalRewards := big.NewInt(0)
-	totalDeposits := big.NewInt(0)
 	for _, b := range balances {
 		status := ethpb.ValidatorStatus(ethpb.ValidatorStatus_value[b.Status])
 		if isEligibleForRewards(status) {
 			deposit := big.NewInt(0).SetUint64(depositInGigaWei)
 			balance := big.NewInt(0).SetUint64(b.Balance)
 			reward := big.NewInt(0).Sub(balance, deposit)
-			totalRewards.Add(totalRewards, reward)
+			cumulativeRewards.Add(cumulativeRewards, reward)
 			totalDeposits.Add(totalDeposits, deposit)
 		}
 	}
-	return totalRewards, totalDeposits, nil
+	return cumulativeRewards, totalDeposits
+}
+
+func (a *Metrics) GetRewards(ctx context.Context, epoch uint64) (RewardsMetrics, error) {
+	balances, err := a.GetBalances(ctx, epoch)
+	if err != nil {
+		return RewardsMetrics{}, errors.Wrap(err, "could not get balances from beacon chain")
+	}
+
+	cumulativeRewards, totalDeposits := getRewardsFromBalances(balances)
+	rewardsMetrics := RewardsMetrics{
+		Epoch:             epoch,
+		TotalDeposits:     totalDeposits,
+		CumulativeRewards: cumulativeRewards,
+	}
+
+	return rewardsMetrics, nil
 }
 
 func (a *Metrics) GetBalances(ctx context.Context, epoch uint64) ([]*ethpb.ValidatorBalances_Balance, error) {

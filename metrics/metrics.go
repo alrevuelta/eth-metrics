@@ -11,14 +11,6 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-const (
-	gigaWei          = uint64(1_000_000_000)
-	depositInGigaWei = uint64(32) * gigaWei
-)
-
-// Max uint64 value
-const maxUint64Value = uint64(^uint(0))
-
 type Metrics struct {
 	beaconChainClient ethpb.BeaconChainClient
 	validatorClient   ethpb.BeaconNodeValidatorClient
