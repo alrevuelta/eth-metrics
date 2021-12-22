@@ -6,14 +6,17 @@
 
 ## Introduction
 
-Monitor the performance of your Ethereum 2.0 staking pool. Just input the withdrawal credential(s) or wallet address(es) that was used in the deposit contract and the network you want to run. Note that a prysm gRPC beacon-chain is required at `localhost:4000`. Tested with up to 25000 validators. Some features:
+Monitor the performance of your Ethereum 2.0 staking pool. Just input the withdrawal credential(s) or wallet address(es) that was used in the deposit contract and the network you want to run. Note that a prysm gRPC beacon-chain is required at `localhost:4000`. Tested with up to 30000 validators. Some features:
 * Deposited Eth and rewards monitoring
 * Rates of faulty head/source/target voting
 * Monitor the percent of validators which balance decreased
+* Monitor the amount of eth that was earned/lost in an epoch
 * Proposed and missed blocks monitoring
 * All metrics are exposed with prometheus, see `/prometheus`
 * Only the latest epoch is analyzed, this tool can't go back in time from deployment
 * No need to run an archival node, default config should be enough
+
+See [this](https://github.com/alrevuelta/eth-pools-metrics/blob/master/docs/prometheus.md) for more information about the metrics and [this](https://github.com/alrevuelta/eth-pools-metrics/blob/master/docs/pools.md) if you want to get your pool monitored.
 
 ## Build
 

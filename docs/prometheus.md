@@ -22,3 +22,6 @@ The following metrics are exposed by prometheus. Note that in order to access th
 * `balance_decreased_percent`: Percent of validators that decreased in balance in a given epoch transition
 * `recognized_deposited_amount`: Amount of gwei that all validators deposited. It should be `32Eth*number_deposited_validators`
 * `cumulative_rewards`: Cumulative rewards for all validators
+* `earned_amount_in_epoch`: Earned gwei in the previous epoch transition.
+* `losed_amount_in_epoch`: Lost gwei in the previous epoch transition.
+* `eth_price_usd`: Price of eth in usd for a given moment.
