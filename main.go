@@ -5,7 +5,9 @@ import (
 	"github.com/alrevuelta/eth-pools-metrics/metrics"
 	"github.com/alrevuelta/eth-pools-metrics/prometheus"
 	log "github.com/sirupsen/logrus"
-	"time"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 // TODO: Bump automatically with -ldflags
@@ -33,8 +35,15 @@ func main() {
 
 	metrics.Run()
 
-	// Loop forever
+	// Wait for signal.
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	for {
-		time.Sleep(1000 * time.Millisecond)
+		sig := <-sigCh
+		if sig == syscall.SIGINT || sig == syscall.SIGTERM || sig == os.Interrupt || sig == os.Kill {
+			break
+		}
 	}
+
+	log.Info("Stopping eth-pools-metrics")
 }

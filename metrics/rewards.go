@@ -8,6 +8,7 @@ import (
 	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	"math/big"
+	"runtime"
 	"time"
 )
 
@@ -52,6 +53,10 @@ func (a *Metrics) StreamRewards() {
 		setPrometheusRewards(metrics)
 
 		lastEpoch = uint64(head.FinalizedEpoch)
+
+		// Temporal fix to memory leak. Perhaps having an infinite loop
+		// inside a routinne is not a good idea. TODO
+		runtime.GC()
 
 		// Do not fetch every epoch. For a large number of validators it would be too much
 		// TODO: Set as config parameter

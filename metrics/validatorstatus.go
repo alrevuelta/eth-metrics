@@ -5,6 +5,7 @@ import (
 	"github.com/alrevuelta/eth-pools-metrics/prometheus"
 	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
 	log "github.com/sirupsen/logrus"
+	"runtime"
 	"time"
 )
 
@@ -57,6 +58,10 @@ func (a *Metrics) StreamValidatorStatus() {
 		metrics := getValidatorStatusMetrics(valsStatus)
 		logValidatorStatus(metrics)
 		setPrometheusValidatorStatus(metrics)
+
+		// Temporal fix to memory leak. Perhaps having an infinite loop
+		// inside a routinne is not a good idea. TODO
+		runtime.GC()
 
 		time.Sleep(6 * 60 * time.Second)
 	}

@@ -8,6 +8,7 @@ import (
 	ethTypes "github.com/prysmaticlabs/eth2-types"
 	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
 	log "github.com/sirupsen/logrus"
+	"runtime"
 	"time"
 )
 
@@ -52,6 +53,10 @@ func (a *Metrics) StreamDuties() {
 			"PerformedDuties": nOfProposedBlocks,
 		}).Info("Block proposals duties:")
 		lastEpoch = uint64(head.FinalizedEpoch)
+
+		// Temporal fix to memory leak. Perhaps having an infinite loop
+		// inside a routinne is not a good idea. TODO
+		runtime.GC()
 	}
 }
 

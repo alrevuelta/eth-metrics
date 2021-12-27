@@ -3,6 +3,7 @@ package metrics
 import (
 	//"github.com/alrevuelta/eth-pools-metrics/prometheus"
 	log "github.com/sirupsen/logrus"
+	"runtime"
 	"time"
 )
 
@@ -26,6 +27,10 @@ func (a *Metrics) StreamDeposits() {
 			//"Slot":     slot,
 			//"Epoch":    uint64(slot) % a.slotsInEpoch,
 		}).Info("Deposits:")
+
+		// Temporal fix to memory leak. Perhaps having an infinite loop
+		// inside a routinne is not a good idea. TODO
+		runtime.GC()
 
 		time.Sleep(60 * 60 * time.Second)
 	}

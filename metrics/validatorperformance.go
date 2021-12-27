@@ -11,6 +11,7 @@ import (
 	"github.com/prysmaticlabs/prysm/v2/time/slots"
 	log "github.com/sirupsen/logrus"
 	"math/big"
+	"runtime"
 	"time"
 )
 
@@ -43,6 +44,10 @@ func (a *Metrics) StreamValidatorPerformance() {
 		}
 
 		metrics := getValidatorPerformanceMetrics(valsPerformance)
+
+		// Temporal fix to memory leak. Perhaps having an infinite loop
+		// inside a routinne is not a good idea. TODO
+		runtime.GC()
 
 		logValidatorPerformance(metrics)
 		setPrometheusValidatorPerformance(metrics)

@@ -4,6 +4,7 @@ import (
 	"github.com/alrevuelta/eth-pools-metrics/prometheus"
 	log "github.com/sirupsen/logrus"
 	gecko "github.com/superoo7/go-gecko/v3"
+	"runtime"
 	"time"
 )
 
@@ -22,6 +23,10 @@ func (a *Metrics) StreamEthPrice() {
 
 		logPrice(eth["usd"])
 		setPrometheusPrice(eth["usd"])
+
+		// Temporal fix to memory leak. Perhaps having an infinite loop
+		// inside a routinne is not a good idea. TODO
+		runtime.GC()
 
 		// Every hour
 		time.Sleep(60 * 60 * time.Second)
