@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"flag"
@@ -6,6 +6,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"os"
 )
+
+// By default the release is a custom build. CI takes care of upgrading it with
+// go build -v -ldflags="-X 'github.com/alrevuelta/eth-pools-metrics/config.ReleaseVersion=x.y.z'"
+var ReleaseVersion = "custom-build"
 
 type Config struct {
 	Network               string

@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"github.com/alrevuelta/eth-pools-metrics/config"
 	"github.com/alrevuelta/eth-pools-metrics/prysm-concurrent"
 	"github.com/alrevuelta/eth-pools-metrics/thegraph"
 	"github.com/pkg/errors"
@@ -32,17 +33,18 @@ type Metrics struct {
 
 func NewMetrics(
 	ctx context.Context,
-	beaconRpcEndpoint string,
-	network string,
-	withCredList []string,
-	fromAddresses []string) (*Metrics, error) {
+	config *config.Config) (*Metrics, error) {
 
-	theGraph, err := thegraph.NewThegraph(network, withCredList, fromAddresses)
+	theGraph, err := thegraph.NewThegraph(
+		config.Network,
+		config.WithdrawalCredentials,
+		config.FromAddress)
+
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating thegraph")
 	}
 
-	dialContext, err := grpc.DialContext(ctx, beaconRpcEndpoint, grpc.WithInsecure())
+	dialContext, err := grpc.DialContext(ctx, config.BeaconRpcEndpoint, grpc.WithInsecure())
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create dial context")
 	}
@@ -61,7 +63,7 @@ func NewMetrics(
 		return nil, errors.Wrap(err, "error getting slots in epoch from config")
 	}
 
-	prysmConcurrent, err := prysmconcurrent.NewPrysmConcurrent(ctx, beaconRpcEndpoint)
+	prysmConcurrent, err := prysmconcurrent.NewPrysmConcurrent(ctx, config.BeaconRpcEndpoint)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating prysm concurrent")
 	}
@@ -72,7 +74,7 @@ func NewMetrics(
 		beaconChainClient: beaconClient,
 		validatorClient:   validatorClient,
 		nodeClient:        nodeClient,
-		withCredList:      withCredList,
+		withCredList:      config.WithdrawalCredentials,
 		genesisSeconds:    uint64(genesis.GenesisTime.Seconds),
 		slotsInEpoch:      uint64(slotsInEpoch),
 	}, nil
