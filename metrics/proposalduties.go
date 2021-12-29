@@ -13,6 +13,7 @@ import (
 )
 
 type ProposalDutiesMetrics struct {
+	Epoch     uint64
 	Scheduled []Duty
 	Proposed  []Duty
 	Missed    []Duty
@@ -50,21 +51,52 @@ func (a *Metrics) StreamDuties() {
 			continue
 		}
 		metrics := getProposalDuties(duties, blocks)
+		metrics.Epoch = uint64(head.FinalizedEpoch)
 
-		prometheus.NOfScheduledBlocks.Set(float64(len(metrics.Scheduled)))
-		prometheus.NOfProposedBlocks.Set(float64(len(metrics.Proposed)))
+		logProposalDuties(metrics)
+		setPrometheusProposalDuties(metrics)
 
-		log.WithFields(log.Fields{
-			"Epoch":           head.FinalizedEpoch,
-			"ScheduledDuties": len(metrics.Scheduled),
-			"PerformedDuties": len(metrics.Proposed),
-		}).Info("Block proposals duties:")
 		lastEpoch = uint64(head.FinalizedEpoch)
 
 		// Temporal fix to memory leak. Perhaps having an infinite loop
 		// inside a routinne is not a good idea. TODO
 		runtime.GC()
 	}
+}
+
+func logProposalDuties(metrics *ProposalDutiesMetrics) {
+	for _, d := range metrics.Scheduled {
+		log.WithFields(log.Fields{
+			"ValIndex":       d.valIndex,
+			"Slot":           d.slot,
+			"Epoch":          metrics.Epoch,
+			"TotalScheduled": len(metrics.Scheduled),
+		}).Info("Scheduled Duty")
+	}
+
+	for _, d := range metrics.Proposed {
+		log.WithFields(log.Fields{
+			"ValIndex":      d.valIndex,
+			"Slot":          d.slot,
+			"Epoch":         metrics.Epoch,
+			"Graffiti":      d.graffiti,
+			"TotalProposed": len(metrics.Proposed),
+		}).Info("Proposed Duty")
+	}
+
+	for _, d := range metrics.Missed {
+		log.WithFields(log.Fields{
+			"ValIndex":    d.valIndex,
+			"Slot":        d.slot,
+			"Epoch":       metrics.Epoch,
+			"TotalMissed": len(metrics.Missed),
+		}).Info("Missed Duty")
+	}
+}
+
+func setPrometheusProposalDuties(metrics *ProposalDutiesMetrics) {
+	prometheus.NOfScheduledBlocks.Set(float64(len(metrics.Scheduled)))
+	prometheus.NOfProposedBlocks.Set(float64(len(metrics.Proposed)))
 }
 
 func (a *Metrics) FetchDuties(
@@ -112,7 +144,6 @@ func getProposalDuties(
 		Proposed:  make([]Duty, 0),
 		Missed:    make([]Duty, 0),
 	}
-	log.Info("metrics:", metrics)
 
 	if duties == nil {
 		log.Warn("No data is available to calculate the duties")
@@ -128,14 +159,6 @@ func getProposalDuties(
 			// Most likely there will be only a single proposal per epoch
 			for _, propSlot := range duties.CurrentEpochDuties[i].ProposerSlots {
 				metrics.Scheduled = append(metrics.Scheduled, Duty{valIndex: valIndex, slot: propSlot})
-
-				// TODO: Move this somewhere else
-				log.WithFields(log.Fields{
-					"PublicKey": fmt.Sprintf("%x", duties.CurrentEpochDuties[i].PublicKey),
-					"ValIndex":  valIndex,
-					"Slot":      propSlot,
-					//"Epoch":     uint64(propSlot) % a.slotsInEpoch,
-				}).Info("Proposal Duty Found:")
 			}
 		}
 	}
@@ -156,13 +179,6 @@ func getProposalDuties(
 					valIndex: propIndex,
 					slot:     slot,
 					graffiti: graffiti})
-				// TODO: Move this somewhere else
-				log.WithFields(log.Fields{
-					"ValIndex": propIndex,
-					"Slot":     slot,
-					//"Epoch":    uint64(slot) % a.slotsInEpoch,
-					"Graffiti": graffiti,
-				}).Info("Proposal Duty Completion Verified:")
 				break
 			}
 		}
@@ -206,5 +222,6 @@ func getBlockParams(block *ethpb.BeaconBlockContainer) (uint64, ethTypes.Slot, s
 		slot = block.GetAltairBlock().Block.Slot
 		graffiti = fmt.Sprintf("%s", block.GetAltairBlock().Block.Body.Graffiti)
 	}
+	// TODO: Add merge block when implemented
 	return propIndex, slot, graffiti
 }
