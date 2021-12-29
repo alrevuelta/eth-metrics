@@ -12,9 +12,16 @@ import (
 	"time"
 )
 
+type ProposalDutiesMetrics struct {
+	Scheduled []Duty
+	Proposed  []Duty
+	Missed    []Duty
+}
+
 type Duty struct {
 	valIndex uint64
 	slot     ethTypes.Slot
+	graffiti string
 }
 
 // Continuously reports scheduled and fulfilled duties for the validators for
@@ -42,15 +49,15 @@ func (a *Metrics) StreamDuties() {
 			log.Error("could not get duties: ", err)
 			continue
 		}
-		nOfScheduledBlocks, nOfProposedBlocks := getProposalDuties(duties, blocks)
+		metrics := getProposalDuties(duties, blocks)
 
-		prometheus.NOfScheduledBlocks.Set(float64(nOfScheduledBlocks))
-		prometheus.NOfProposedBlocks.Set(float64(nOfProposedBlocks))
+		prometheus.NOfScheduledBlocks.Set(float64(len(metrics.Scheduled)))
+		prometheus.NOfProposedBlocks.Set(float64(len(metrics.Proposed)))
 
 		log.WithFields(log.Fields{
 			"Epoch":           head.FinalizedEpoch,
-			"RequestedDuties": nOfScheduledBlocks,
-			"PerformedDuties": nOfProposedBlocks,
+			"ScheduledDuties": len(metrics.Scheduled),
+			"PerformedDuties": len(metrics.Proposed),
 		}).Info("Block proposals duties:")
 		lastEpoch = uint64(head.FinalizedEpoch)
 
@@ -98,15 +105,19 @@ func (a *Metrics) FetchDuties(
 // of performed proposals
 func getProposalDuties(
 	duties *ethpb.DutiesResponse,
-	blocks *ethpb.ListBeaconBlocksResponse) (uint64, uint64) {
+	blocks *ethpb.ListBeaconBlocksResponse) *ProposalDutiesMetrics {
+
+	metrics := &ProposalDutiesMetrics{
+		Scheduled: make([]Duty, 0),
+		Proposed:  make([]Duty, 0),
+		Missed:    make([]Duty, 0),
+	}
+	log.Info("metrics:", metrics)
 
 	if duties == nil {
 		log.Warn("No data is available to calculate the duties")
-		return 0, 0
+		return metrics
 	}
-
-	// Store the proposing duties that belongs to our validators
-	proposalDuties := make([]Duty, 0)
 
 	// Scan all duties in the given epoch
 	for i := range duties.CurrentEpochDuties {
@@ -116,7 +127,7 @@ func getProposalDuties(
 			valIndex := uint64(duties.CurrentEpochDuties[i].ValidatorIndex)
 			// Most likely there will be only a single proposal per epoch
 			for _, propSlot := range duties.CurrentEpochDuties[i].ProposerSlots {
-				proposalDuties = append(proposalDuties, Duty{valIndex, propSlot})
+				metrics.Scheduled = append(metrics.Scheduled, Duty{valIndex: valIndex, slot: propSlot})
 
 				// TODO: Move this somewhere else
 				log.WithFields(log.Fields{
@@ -130,19 +141,21 @@ func getProposalDuties(
 	}
 
 	// Just return if no proposal duties were found for us
-	if len(proposalDuties) == 0 {
-		return 0, 0
+	if len(metrics.Scheduled) == 0 {
+		return metrics
 	}
 
-	proposalsPerformed := uint64(0)
-
 	// Iterate our validator proposal duties
-	for _, duty := range proposalDuties {
+	for _, duty := range metrics.Scheduled {
 		// Iterate all blocks and check if we proposed the ones we should
 		for _, block := range blocks.BlockContainers {
 			propIndex, slot, graffiti := getBlockParams(block)
 			// If the block at the slot was proposed by us (valIndex)
 			if duty.valIndex == propIndex && duty.slot == slot {
+				metrics.Proposed = append(metrics.Proposed, Duty{
+					valIndex: propIndex,
+					slot:     slot,
+					graffiti: graffiti})
 				// TODO: Move this somewhere else
 				log.WithFields(log.Fields{
 					"ValIndex": propIndex,
@@ -150,15 +163,33 @@ func getProposalDuties(
 					//"Epoch":    uint64(slot) % a.slotsInEpoch,
 					"Graffiti": graffiti,
 				}).Info("Proposal Duty Completion Verified:")
-				proposalsPerformed++
 				break
 			}
 		}
 	}
 
-	totalProposalDuties := uint64(len(proposalDuties))
+	metrics.Missed = getMissedDuties(metrics.Scheduled, metrics.Proposed)
 
-	return totalProposalDuties, proposalsPerformed
+	return metrics
+}
+
+func getMissedDuties(scheduled []Duty, proposed []Duty) []Duty {
+	missed := make([]Duty, 0)
+
+	for _, s := range scheduled {
+		found := false
+		for _, p := range proposed {
+			if s.slot == p.slot && s.valIndex == p.valIndex {
+				found = true
+				break
+			}
+		}
+		if found == false {
+			missed = append(missed, s)
+		}
+	}
+
+	return missed
 }
 
 func getBlockParams(block *ethpb.BeaconBlockContainer) (uint64, ethTypes.Slot, string) {

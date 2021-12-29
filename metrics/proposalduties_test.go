@@ -3,7 +3,7 @@ package metrics
 import (
 	ethTypes "github.com/prysmaticlabs/eth2-types"
 	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
-	log "github.com/sirupsen/logrus"
+	//log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -60,9 +60,9 @@ var duties = &ethpb.DutiesResponse{
 	}}
 
 // Blocks can be:
-//BeaconBlockContainer_Phase0Block
-//BeaconBlockContainer_AltairBlock
-//And soon: BeaconBlockMerge
+// BeaconBlockContainer_Phase0Block
+// BeaconBlockContainer_AltairBlock
+// And soon: BeaconBlockMerge
 
 // Only p1-p5 duties are fulfilled
 var blocks = &ethpb.ListBeaconBlocksResponse{
@@ -106,11 +106,50 @@ var blocks = &ethpb.ListBeaconBlocksResponse{
 }
 
 func Test_getProposalDuties(t *testing.T) {
-	proposalDuties, performedDuties := getProposalDuties(duties, blocks)
+	metrics := getProposalDuties(duties, blocks)
 
-	log.Info("proposalDuties:", proposalDuties)
-	log.Info("performedDuties:", performedDuties)
+	require.Equal(t, len(metrics.Scheduled), 7)
+	require.Equal(t, len(metrics.Proposed), 5)
+	require.Equal(t, len(metrics.Missed), 2)
 
-	require.Equal(t, proposalDuties, uint64(7))
-	require.Equal(t, performedDuties, uint64(5))
+	// Scheduled blocks
+	for i := 0; i < 7; i++ {
+		require.Equal(t, metrics.Scheduled[i].valIndex, uint64(i+1))
+		require.Equal(t, metrics.Scheduled[i].slot, ethTypes.Slot(32000+i))
+	}
+
+	// Proposed blocks
+	for i := 0; i < 5; i++ {
+		require.Equal(t, metrics.Proposed[i].valIndex, uint64(i+1))
+		require.Equal(t, metrics.Proposed[i].slot, ethTypes.Slot(32000+i))
+	}
+
+	// Missed blocks
+	for i := 0; i < 2; i++ {
+		require.Equal(t, metrics.Missed[i].valIndex, uint64(i+6))
+		require.Equal(t, metrics.Missed[i].slot, ethTypes.Slot(32005+i))
+	}
+}
+
+func Test_getMissedDuties(t *testing.T) {
+	missedDuties := getMissedDuties(
+		// Schedulled
+		[]Duty{
+			{valIndex: 1, slot: ethTypes.Slot(1000)},
+			{valIndex: 2, slot: ethTypes.Slot(2000)},
+			{valIndex: 3, slot: ethTypes.Slot(3000)},
+			{valIndex: 4, slot: ethTypes.Slot(4000)},
+		},
+		// Proposed
+		[]Duty{
+			{valIndex: 1, slot: ethTypes.Slot(1000)},
+			{valIndex: 4, slot: ethTypes.Slot(4000)},
+		},
+	)
+
+	require.Equal(t, missedDuties[0].valIndex, uint64(2))
+	require.Equal(t, missedDuties[0].slot, ethTypes.Slot(2000))
+
+	require.Equal(t, missedDuties[1].valIndex, uint64(3))
+	require.Equal(t, missedDuties[1].slot, ethTypes.Slot(3000))
 }
