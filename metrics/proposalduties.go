@@ -42,7 +42,7 @@ func (a *Metrics) StreamDuties() {
 			log.Error("could not get duties: ", err)
 			continue
 		}
-		nOfScheduledBlocks, nOfProposedBlocks := a.getProposalDuties(duties, blocks)
+		nOfScheduledBlocks, nOfProposedBlocks := getProposalDuties(duties, blocks)
 
 		prometheus.NOfScheduledBlocks.Set(float64(nOfScheduledBlocks))
 		prometheus.NOfProposedBlocks.Set(float64(nOfProposedBlocks))
@@ -96,7 +96,7 @@ func (a *Metrics) FetchDuties(
 
 // Returns the number of duties in an epoch for all our validators and the number
 // of performed proposals
-func (a *Metrics) getProposalDuties(
+func getProposalDuties(
 	duties *ethpb.DutiesResponse,
 	blocks *ethpb.ListBeaconBlocksResponse) (uint64, uint64) {
 
@@ -117,11 +117,13 @@ func (a *Metrics) getProposalDuties(
 			// Most likely there will be only a single proposal per epoch
 			for _, propSlot := range duties.CurrentEpochDuties[i].ProposerSlots {
 				proposalDuties = append(proposalDuties, Duty{valIndex, propSlot})
+
+				// TODO: Move this somewhere else
 				log.WithFields(log.Fields{
 					"PublicKey": fmt.Sprintf("%x", duties.CurrentEpochDuties[i].PublicKey),
 					"ValIndex":  valIndex,
 					"Slot":      propSlot,
-					"Epoch":     uint64(propSlot) % a.slotsInEpoch,
+					//"Epoch":     uint64(propSlot) % a.slotsInEpoch,
 				}).Info("Proposal Duty Found:")
 			}
 		}
@@ -141,10 +143,11 @@ func (a *Metrics) getProposalDuties(
 			propIndex, slot, graffiti := getBlockParams(block)
 			// If the block at the slot was proposed by us (valIndex)
 			if duty.valIndex == propIndex && duty.slot == slot {
+				// TODO: Move this somewhere else
 				log.WithFields(log.Fields{
 					"ValIndex": propIndex,
 					"Slot":     slot,
-					"Epoch":    uint64(slot) % a.slotsInEpoch,
+					//"Epoch":    uint64(slot) % a.slotsInEpoch,
 					"Graffiti": graffiti,
 				}).Info("Proposal Duty Completion Verified:")
 				proposalsPerformed++
