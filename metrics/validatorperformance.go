@@ -16,6 +16,7 @@ import (
 )
 
 type ValidatorPerformanceMetrics struct {
+	Epoch                  uint64
 	NOfTotalVotes          uint64
 	NOfIncorrectSource     uint64
 	NOfIncorrectTarget     uint64
@@ -35,7 +36,7 @@ func (a *Metrics) StreamValidatorPerformance() {
 		defer cancel()
 
 		// Fetch needed data to run the metrics
-		valsPerformance, newData, err := a.FetchValidatorPerformance(ctx)
+		valsPerformance, newData, epoch, err := a.FetchValidatorPerformance(ctx)
 		if err != nil {
 			log.WithError(err).Warn("Failed to fetch metrics data")
 			continue
@@ -46,13 +47,14 @@ func (a *Metrics) StreamValidatorPerformance() {
 		}
 
 		metrics := getValidatorPerformanceMetrics(valsPerformance)
+		metrics.Epoch = epoch
+
+		logValidatorPerformance(metrics)
+		setPrometheusValidatorPerformance(metrics)
 
 		// Temporal fix to memory leak. Perhaps having an infinite loop
 		// inside a routinne is not a good idea. TODO
 		runtime.GC()
-
-		logValidatorPerformance(metrics)
-		setPrometheusValidatorPerformance(metrics)
 	}
 }
 
@@ -131,10 +133,8 @@ func getValidatorPerformanceMetrics(valsPerformance *ethpb.ValidatorPerformanceR
 func logValidatorPerformance(metrics ValidatorPerformanceMetrics) {
 	balanceDecreasedPercent := (float64(metrics.NOfValsWithLessBalance) / float64(metrics.NOfValidatingKeys)) * 100
 
-	// Log the metrics
 	logEpochSlot := log.WithFields(log.Fields{
-		"Epoch": "TODO",
-		"Slot":  "TODO",
+		"Epoch": metrics.Epoch,
 	})
 
 	logEpochSlot.WithFields(log.Fields{
@@ -181,16 +181,24 @@ func setPrometheusValidatorPerformance(metrics ValidatorPerformanceMetrics) {
 	// TODO: Deprecate this, send the raw number
 	balanceDecreasedPercent := (float64(metrics.NOfValsWithLessBalance) / float64(metrics.NOfValidatingKeys)) * 100
 	prometheus.BalanceDecreasedPercent.Set(balanceDecreasedPercent)
+
+	for _, v := range metrics.MissedAttestationsKeys {
+		prometheus.MissedAttestationsKeys.WithLabelValues(v).Inc()
+	}
+
+	for _, v := range metrics.LostBalanceKeys {
+		prometheus.LessBalanceKeys.WithLabelValues(v).Inc()
+	}
 }
 
 // Fetches data from the beacon chain for a given set of validators. Note
 // that not all request accepts the epoch as input, so this function takes
 // care of synching with the beacon so that all fetched data refers to the same
 // epoch
-func (a *Metrics) FetchValidatorPerformance(ctx context.Context) (*ethpb.ValidatorPerformanceResponse, bool, error) {
+func (a *Metrics) FetchValidatorPerformance(ctx context.Context) (*ethpb.ValidatorPerformanceResponse, bool, uint64, error) {
 	head, err := GetChainHead(ctx, a.beaconChainClient)
 	if err != nil {
-		return nil, false, errors.Wrap(err, "error getting chain head")
+		return nil, false, 0, errors.Wrap(err, "error getting chain head")
 	}
 
 	// Run metrics in already completed epochs
@@ -202,18 +210,18 @@ func (a *Metrics) FetchValidatorPerformance(ctx context.Context) (*ethpb.Validat
 	if a.validatingKeys == nil {
 		log.Warn("No active keys to get vals performance")
 		time.Sleep(30 * time.Second)
-		return nil, false, nil
+		return nil, false, 0, nil
 	}
 
 	// Wait until the last slot to ensure all attestations are included
 	if a.Epoch >= metricsEpoch || !slots.IsEpochEnd(head.HeadSlot) {
-		return nil, false, nil
+		return nil, false, 0, nil
 	}
 
 	slotTime, err := slots.ToTime(uint64(a.genesisSeconds), ethTypes.Slot(head.HeadSlot+1))
 
 	if err != nil {
-		return nil, false, errors.Wrap(err, "could not get next slot time")
+		return nil, false, 0, errors.Wrap(err, "could not get next slot time")
 	}
 
 	// Set as deadline the begining of the first slot of the next epoch
@@ -236,7 +244,7 @@ func (a *Metrics) FetchValidatorPerformance(ctx context.Context) (*ethpb.Validat
 
 	valsPerformance, err := a.beaconChainClient.GetValidatorPerformance(ctx, req)
 	if err != nil {
-		return nil, false, errors.Wrap(err, "could not get validator performance from beacon client")
+		return nil, false, 0, errors.Wrap(err, "could not get validator performance from beacon client")
 	}
 
 	for i := range valsPerformance.MissingValidators {
@@ -248,5 +256,5 @@ func (a *Metrics) FetchValidatorPerformance(ctx context.Context) (*ethpb.Validat
 
 	log.Info("Remaining time for next slot: ", ctx)
 
-	return valsPerformance, true, nil
+	return valsPerformance, true, metricsEpoch, nil
 }

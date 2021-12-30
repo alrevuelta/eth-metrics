@@ -97,6 +97,18 @@ func logProposalDuties(metrics *ProposalDutiesMetrics) {
 func setPrometheusProposalDuties(metrics *ProposalDutiesMetrics) {
 	prometheus.NOfScheduledBlocks.Set(float64(len(metrics.Scheduled)))
 	prometheus.NOfProposedBlocks.Set(float64(len(metrics.Proposed)))
+
+	for _, d := range metrics.Proposed {
+		prometheus.ProposedBlocks.WithLabelValues(
+			UToStr(metrics.Epoch),
+			UToStr(d.valIndex)).Inc()
+	}
+
+	for _, d := range metrics.Missed {
+		prometheus.MissedBlocks.WithLabelValues(
+			UToStr(metrics.Epoch),
+			UToStr(d.valIndex)).Inc()
+	}
 }
 
 func (a *Metrics) FetchDuties(

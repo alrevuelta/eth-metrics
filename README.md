@@ -16,7 +16,7 @@ Monitor the performance of your Ethereum 2.0 staking pool. Just input the withdr
 * Only the latest epoch is analyzed, this tool can't go back in time from deployment
 * No need to run an archival node, default config should be enough
 
-See [this](https://github.com/alrevuelta/eth-pools-metrics/blob/master/docs/prometheus.md) for more information about the metrics and [this](https://github.com/alrevuelta/eth-pools-metrics/blob/master/docs/pools.md) if you want to get your pool monitored.
+See [this](https://github.com/alrevuelta/eth-pools-metrics/blob/master/prometheus/prometheus.go) for more information about the metrics and [this](https://github.com/alrevuelta/eth-pools-metrics/blob/master/docs/pools.md) if you want to get your pool monitored.
 
 ## Build
 

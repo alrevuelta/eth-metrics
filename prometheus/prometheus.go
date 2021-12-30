@@ -18,6 +18,7 @@ func Run(port int) {
 // TODO: Add the pool before each name
 
 var (
+	// TODO: For all validato states, use a GaugeVec with key (state): value (amount)
 	NOfUnkownValidators = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: "validators",
@@ -207,6 +208,52 @@ var (
 			Namespace: "validators",
 			Name:      "eth_price_usd",
 			Help:      "Ethereum price in usd",
+		},
+	)
+
+	MissedAttestationsKeys = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "epoch_missed_attestations_keys",
+			Help:      "List of keys and the number of attestations that were missed (since startup)",
+		},
+		[]string{
+			"validatorKey",
+		},
+	)
+
+	LessBalanceKeys = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "epoch_less_balance_keys",
+			Help:      "List of keys and the times its balance decreased (since startup)",
+		},
+		[]string{
+			"validatorKey",
+		},
+	)
+
+	ProposedBlocks = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "proposed_blocks_indexes",
+			Help:      "Validator indexes that proposed blocks in a given epoch",
+		},
+		[]string{
+			"epoch",
+			"index",
+		},
+	)
+
+	MissedBlocks = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "missed_blocks_indexes",
+			Help:      "Validator indexes that missed a block proposal in a given epoch",
+		},
+		[]string{
+			"epoch",
+			"index",
 		},
 	)
 
