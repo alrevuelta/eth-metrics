@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"encoding/hex"
 	ethTypes "github.com/prysmaticlabs/eth2-types"
 	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
 	"github.com/stretchr/testify/require"
@@ -26,19 +27,22 @@ var valsPerformance = &ethpb.ValidatorPerformanceResponse{
 }
 
 func Test_getBalanceMetrics(t *testing.T) {
-	nOfValsWithDecreasedBalance, nOfValidators, earned, losed := getBalanceMetrics(valsPerformance)
+	nOfValsWithDecreasedBalance, nOfValidators, earned, losed, decreasedKeys := getBalanceMetrics(valsPerformance)
 
 	require.Equal(t, nOfValsWithDecreasedBalance, uint64(1))
 	require.Equal(t, nOfValidators, uint64(3))
 	require.Equal(t, earned, big.NewInt(30))
 	require.Equal(t, losed, big.NewInt(-10))
+	require.Equal(t, losed, big.NewInt(-10))
+	require.Equal(t, decreasedKeys, []string{hex.EncodeToString(key1[:])})
 }
 
 func Test_getAttestationMetrics(t *testing.T) {
-	nOfTotalVotes, nOfIncorrectSource, nOfIncorrectTarget, nOfIncorrectHead := getAttestationMetrics(valsPerformance)
+	nOfTotalVotes, nOfIncorrectSource, nOfIncorrectTarget, nOfIncorrectHead, missedKeys := getAttestationMetrics(valsPerformance)
 
 	require.Equal(t, nOfTotalVotes, uint64(9))
 	require.Equal(t, nOfIncorrectSource, uint64(2))
 	require.Equal(t, nOfIncorrectTarget, uint64(2))
 	require.Equal(t, nOfIncorrectHead, uint64(1))
+	require.Equal(t, missedKeys, []string{hex.EncodeToString(key1[:])})
 }

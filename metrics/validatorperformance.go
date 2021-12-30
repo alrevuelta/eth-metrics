@@ -24,6 +24,8 @@ type ValidatorPerformanceMetrics struct {
 	NOfValsWithLessBalance uint64
 	EarnedBalance          *big.Int
 	LosedBalance           *big.Int
+	MissedAttestationsKeys []string
+	LostBalanceKeys        []string
 }
 
 func (a *Metrics) StreamValidatorPerformance() {
@@ -57,24 +59,25 @@ func (a *Metrics) StreamValidatorPerformance() {
 // Gets the total number of votes and the incorrect ones
 // The source is the attestation itself
 // https://pintail.xyz/posts/validator-rewards-in-practice/?s=03#attestation-efficiency
-func getAttestationMetrics(valsPerformance *ethpb.ValidatorPerformanceResponse) (uint64, uint64, uint64, uint64) {
+func getAttestationMetrics(valsPerformance *ethpb.ValidatorPerformanceResponse) (uint64, uint64, uint64, uint64, []string) {
+	// TODO: Investigate InactivityScores
 	nOfIncorrectSource := uint64(0)
 	nOfIncorrectTarget := uint64(0)
 	nOfIncorrectHead := uint64(0)
+	missedAttestationsKeys := make([]string, 0)
 	for i := range valsPerformance.PublicKeys {
 		nOfIncorrectSource += BoolToUint64(!valsPerformance.CorrectlyVotedSource[i])
 		nOfIncorrectTarget += BoolToUint64(!valsPerformance.CorrectlyVotedTarget[i])
 		nOfIncorrectHead += BoolToUint64(!valsPerformance.CorrectlyVotedHead[i])
-		// TODO: Store the keys that missed
 		if !valsPerformance.CorrectlyVotedSource[i] {
-			log.Info("Key that missed the attestation: ", hex.EncodeToString(valsPerformance.PublicKeys[i]), "--", valsPerformance.CorrectlyVotedSource[i], "--", valsPerformance.BalancesAfterEpochTransition[i])
+			missedAttestationsKeys = append(missedAttestationsKeys, hex.EncodeToString(valsPerformance.PublicKeys[i]))
 		}
 	}
 
 	// Each validator contains three votes: source, target and head
 	nOfTotalVotes := uint64(len(valsPerformance.PublicKeys)) * 3
 
-	return nOfTotalVotes, nOfIncorrectSource, nOfIncorrectTarget, nOfIncorrectHead
+	return nOfTotalVotes, nOfIncorrectSource, nOfIncorrectTarget, nOfIncorrectHead, missedAttestationsKeys
 }
 
 // Get metrics on balances in the epoch transition
@@ -82,7 +85,10 @@ func getBalanceMetrics(valsPerformance *ethpb.ValidatorPerformanceResponse) (
 	uint64,
 	uint64,
 	*big.Int,
-	*big.Int) {
+	*big.Int,
+	[]string) {
+
+	lostBalanceKeys := make([]string, 0)
 
 	nOfValsWithDecreasedBalance := uint64(0)
 	earnedBalance := big.NewInt(0)
@@ -90,7 +96,7 @@ func getBalanceMetrics(valsPerformance *ethpb.ValidatorPerformanceResponse) (
 	for i := range valsPerformance.PublicKeys {
 		delta := big.NewInt(0).Sub(big.NewInt(0).SetUint64(valsPerformance.BalancesAfterEpochTransition[i]), big.NewInt(0).SetUint64(valsPerformance.BalancesBeforeEpochTransition[i]))
 		if delta.Cmp(big.NewInt(0)) == -1 {
-			log.Info("Key with less balance: ", hex.EncodeToString(valsPerformance.PublicKeys[i]), "--", valsPerformance.BalancesBeforeEpochTransition[i], "--", valsPerformance.BalancesAfterEpochTransition[i])
+			lostBalanceKeys = append(lostBalanceKeys, hex.EncodeToString(valsPerformance.PublicKeys[i]))
 			nOfValsWithDecreasedBalance++
 			losedBalance.Add(losedBalance, delta)
 		} else {
@@ -99,14 +105,14 @@ func getBalanceMetrics(valsPerformance *ethpb.ValidatorPerformanceResponse) (
 	}
 	nOfValidators := uint64(len(valsPerformance.PublicKeys))
 
-	return nOfValsWithDecreasedBalance, nOfValidators, earnedBalance, losedBalance
+	return nOfValsWithDecreasedBalance, nOfValidators, earnedBalance, losedBalance, lostBalanceKeys
 }
 
 func getValidatorPerformanceMetrics(valsPerformance *ethpb.ValidatorPerformanceResponse) ValidatorPerformanceMetrics {
 	metrics := ValidatorPerformanceMetrics{}
 
-	nOfTotalVotes, nOfIncorrectSource, nOfIncorrectTarget, nOfIncorrectHead := getAttestationMetrics(valsPerformance)
-	nOfValsWithDecreasedBalance, nOfValidators, earned, losed := getBalanceMetrics(valsPerformance)
+	nOfTotalVotes, nOfIncorrectSource, nOfIncorrectTarget, nOfIncorrectHead, missedKeys := getAttestationMetrics(valsPerformance)
+	nOfValsWithDecreasedBalance, nOfValidators, earned, losed, lostKeys := getBalanceMetrics(valsPerformance)
 
 	metrics.NOfTotalVotes = nOfTotalVotes
 	metrics.NOfIncorrectSource = nOfIncorrectSource
@@ -116,6 +122,8 @@ func getValidatorPerformanceMetrics(valsPerformance *ethpb.ValidatorPerformanceR
 	metrics.NOfValsWithLessBalance = nOfValsWithDecreasedBalance
 	metrics.EarnedBalance = earned
 	metrics.LosedBalance = losed
+	metrics.MissedAttestationsKeys = missedKeys
+	metrics.LostBalanceKeys = lostKeys
 
 	return metrics
 }
@@ -149,6 +157,17 @@ func logValidatorPerformance(metrics ValidatorPerformanceMetrics) {
 		"earnedBalance":               metrics.EarnedBalance,
 		"losedBalance":                metrics.LosedBalance,
 	}).Info("Balance decreased:")
+
+	for _, v := range metrics.MissedAttestationsKeys {
+		logEpochSlot.WithFields(log.Fields{
+			"ValidadorKey": v,
+		}).Info("Validator missed attestation")
+	}
+	for _, v := range metrics.LostBalanceKeys {
+		logEpochSlot.WithFields(log.Fields{
+			"ValidadorKey": v,
+		}).Info("Validator with less inter-epoch balance")
+	}
 }
 
 func setPrometheusValidatorPerformance(metrics ValidatorPerformanceMetrics) {
