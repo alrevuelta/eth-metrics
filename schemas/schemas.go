@@ -1,11 +1,13 @@
 package schemas
 
 import (
-	"math/big"
 	ethTypes "github.com/prysmaticlabs/eth2-types"
+	"math/big"
+	"time"
 )
 
 type ValidatorPerformanceMetrics struct {
+	Time                   time.Time
 	Epoch                  uint64
 	NOfTotalVotes          uint64
 	NOfIncorrectSource     uint64

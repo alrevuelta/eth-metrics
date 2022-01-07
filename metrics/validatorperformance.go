@@ -35,10 +35,18 @@ func (a *Metrics) StreamValidatorPerformance() {
 
 		metrics := getValidatorPerformanceMetrics(valsPerformance)
 		metrics.Epoch = epoch
+		time, err := a.EpochToTime(epoch)
+		if err != nil {
+			log.Error(err)
+		}
+		metrics.Time = time
 
 		logValidatorPerformance(metrics)
 		setPrometheusValidatorPerformance(metrics)
-		a.postgresql.StoreValidatorPerformance(metrics)
+		err = a.postgresql.StoreValidatorPerformance(metrics)
+		if err != nil {
+			log.Error(err)
+		}
 
 		// Temporal fix to memory leak. Perhaps having an infinite loop
 		// inside a routinne is not a good idea. TODO
@@ -189,8 +197,7 @@ func (a *Metrics) FetchValidatorPerformance(ctx context.Context) (*ethpb.Validat
 		return nil, false, 0, errors.Wrap(err, "error getting chain head")
 	}
 
-	// Run metrics in already completed epochs
-	metricsEpoch := uint64(head.HeadEpoch) - 1
+	metricsEpoch := uint64(head.HeadEpoch)
 	metricsSlot := uint64(head.HeadSlot)
 
 	log.Info("Slot: ", ethTypes.Slot(metricsSlot)%params.BeaconConfig().SlotsPerEpoch)

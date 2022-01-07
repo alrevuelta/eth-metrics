@@ -8,7 +8,10 @@ import (
 	"github.com/alrevuelta/eth-pools-metrics/thegraph"
 	"github.com/pkg/errors"
 	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
+	"github.com/prysmaticlabs/prysm/v2/time/slots"
+	"time"
 	//log "github.com/sirupsen/logrus"
+	ethTypes "github.com/prysmaticlabs/eth2-types"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -102,4 +105,12 @@ func (a *Metrics) Run() {
 	go a.StreamValidatorPerformance()
 	go a.StreamValidatorStatus()
 	go a.StreamEthPrice()
+}
+
+func (a *Metrics) EpochToTime(epoch uint64) (time.Time, error) {
+	epochTime, err := slots.ToTime(uint64(a.genesisSeconds), ethTypes.Slot(epoch*a.slotsInEpoch))
+	if err != nil {
+		return time.Time{}, err
+	}
+	return epochTime, nil
 }

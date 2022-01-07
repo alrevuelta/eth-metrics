@@ -13,8 +13,9 @@ var poolNamePlaceholder = "POOLNAMEPLACEHOLDER"
 // If a new field is added, the table has to be manually reset
 var createPool = `
 CREATE TABLE IF NOT EXISTS t_POOLNAMEPLACEHOLDER (
-	 f_pool TEXT,
 	 f_epoch BIGINT PRIMARY KEY,
+	 f_epoch_timestamp TIMESTAMPTZ NOT NULL,
+	 f_pool TEXT,
 
 	 f_n_total_votes BIGINT,
 	 f_n_incorrect_source BIGINT,
@@ -38,6 +39,7 @@ CREATE TABLE IF NOT EXISTS t_POOLNAMEPLACEHOLDER (
 var insertValidatorPerformance = `
 INSERT INTO t_POOLNAMEPLACEHOLDER(
 	f_epoch,
+	f_epoch_timestamp,
 	f_n_total_votes,
 	f_n_incorrect_source,
 	f_n_incorrect_target,
@@ -46,9 +48,10 @@ INSERT INTO t_POOLNAMEPLACEHOLDER(
 	f_n_valitadors_with_less_balace,
 	f_epoch_earned_balance,
 	f_epoch_lost_balace)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 ON CONFLICT (f_epoch)
 DO UPDATE SET
+   f_epoch_timestamp=EXCLUDED.f_epoch_timestamp,
    f_n_total_votes=EXCLUDED.f_n_total_votes,
 	 f_n_incorrect_source=EXCLUDED.f_n_incorrect_source,
 	 f_n_incorrect_target=EXCLUDED.f_n_incorrect_target,
@@ -59,7 +62,7 @@ DO UPDATE SET
 	 f_epoch_lost_balace=EXCLUDED.f_epoch_lost_balace
 `
 
-
+// TODO: Add f_epoch_timestamp
 var insertProposalDuties = `
 INSERT INTO t_POOLNAMEPLACEHOLDER(
 	f_epoch,
@@ -123,6 +126,7 @@ func (a *Postgresql) StoreValidatorPerformance(validatorPerformance schemas.Vali
 		context.Background(),
 		a.GetQuery(insertValidatorPerformance),
 		validatorPerformance.Epoch,
+		validatorPerformance.Time,
 		validatorPerformance.NOfTotalVotes,
 		validatorPerformance.NOfIncorrectSource,
 		validatorPerformance.NOfIncorrectTarget,
