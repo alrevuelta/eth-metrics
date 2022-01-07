@@ -12,11 +12,13 @@ import (
 var ReleaseVersion = "custom-build"
 
 type Config struct {
+	PoolName              string
 	Network               string
 	WithdrawalCredentials []string
 	FromAddress           []string
 	BeaconRpcEndpoint     string
 	PrometheusPort        int
+	Postgres              string
 }
 
 // custom implementation to allow providing the same flag multiple times
@@ -44,6 +46,7 @@ func NewCliConfig() (*Config, error) {
 	var prometheusPort = flag.Int("prometheus-port", 9500, "Prometheus port to listen to")
 	var version = flag.Bool("version", false, "Prints the release version and exits")
 	var poolName = flag.String("pool-name", "required", "Name of the pool being monitored. If known, addresses are loaded by default (see known pools)")
+	var postgres = flag.String("postgres", "", "Postgres db endpoit: postgresql://user:password@netloc:port/dbname (optional)")
 	flag.Parse()
 
 	if *version {
@@ -67,11 +70,13 @@ func NewCliConfig() (*Config, error) {
 	}
 
 	conf := &Config{
+		PoolName:              *poolName,
 		Network:               *network,
 		BeaconRpcEndpoint:     *beaconRpcEndpoint,
 		PrometheusPort:        *prometheusPort,
 		WithdrawalCredentials: withdrawalCredentials,
 		FromAddress:           fromAddress,
+		Postgres:              *postgres,
 	}
 	logConfig(conf)
 	return conf, nil
@@ -79,10 +84,12 @@ func NewCliConfig() (*Config, error) {
 
 func logConfig(cfg *Config) {
 	log.WithFields(log.Fields{
+		"PoolName":              cfg.PoolName,
 		"BeaconRpcEndpoint":     cfg.BeaconRpcEndpoint,
 		"WithdrawalCredentials": cfg.WithdrawalCredentials,
 		"FromAddress":           cfg.FromAddress,
 		"Network":               cfg.Network,
 		"PrometheusPort":        cfg.PrometheusPort,
+		"Postgres":              cfg.Postgres,
 	}).Info("Cli Config:")
 }

@@ -3,30 +3,12 @@ package metrics
 import (
 	"context"
 	"github.com/alrevuelta/eth-pools-metrics/prometheus"
+	"github.com/alrevuelta/eth-pools-metrics/schemas"
 	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	"runtime"
 	"time"
 )
-
-type ValidatorStatusMetrics struct {
-	// custom field: vals with active duties
-	Validating uint64
-
-	// TODO: num of slashed validators
-	// note that after slashing->exited
-
-	// maps 1:1 with eth2 spec status
-	Unknown            uint64
-	Deposited          uint64
-	Pending            uint64
-	Active             uint64
-	Exiting            uint64
-	Slashing           uint64
-	Exited             uint64
-	Invalid            uint64
-	PartiallyDeposited uint64
-}
 
 // TODO: Handle race condition
 func (a *Metrics) StreamValidatorStatus() {
@@ -67,7 +49,7 @@ func (a *Metrics) StreamValidatorStatus() {
 	}
 }
 
-func setPrometheusValidatorStatus(metrics ValidatorStatusMetrics) {
+func setPrometheusValidatorStatus(metrics schemas.ValidatorStatusMetrics) {
 	prometheus.NOfValidatingValidators.Set(float64(metrics.Validating))
 	prometheus.NOfUnkownValidators.Set(float64(metrics.Unknown))
 	prometheus.NOfDepositedValidators.Set(float64(metrics.Deposited))
@@ -101,9 +83,9 @@ func isKeyValidating(status ethpb.ValidatorStatus) bool {
 }
 
 func getValidatorStatusMetrics(
-	statusResponse *ethpb.MultipleValidatorStatusResponse) ValidatorStatusMetrics {
+	statusResponse *ethpb.MultipleValidatorStatusResponse) schemas.ValidatorStatusMetrics {
 
-	metrics := ValidatorStatusMetrics{}
+	metrics := schemas.ValidatorStatusMetrics{}
 	for i := range statusResponse.PublicKeys {
 		status := statusResponse.Statuses[i].Status
 
@@ -137,7 +119,7 @@ func getValidatorStatusMetrics(
 	return metrics
 }
 
-func logValidatorStatus(metrics ValidatorStatusMetrics) {
+func logValidatorStatus(metrics schemas.ValidatorStatusMetrics) {
 	log.WithFields(log.Fields{
 		"Validating":         metrics.Validating,
 		"Unknown":            metrics.Unknown,

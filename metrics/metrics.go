@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"github.com/alrevuelta/eth-pools-metrics/config"
+	"github.com/alrevuelta/eth-pools-metrics/postgresql"
 	"github.com/alrevuelta/eth-pools-metrics/prysm-concurrent"
 	"github.com/alrevuelta/eth-pools-metrics/thegraph"
 	"github.com/pkg/errors"
@@ -24,6 +25,7 @@ type Metrics struct {
 	validatingKeys [][]byte
 	withCredList   []string
 	theGraph       *thegraph.Thegraph
+	postgresql     *postgresql.Postgresql
 
 	// Slot and epoch and its raw data
 	// TODO: Remove, each metric task has its pace
@@ -68,6 +70,18 @@ func NewMetrics(
 		return nil, errors.Wrap(err, "error creating prysm concurrent")
 	}
 
+	var pg *postgresql.Postgresql
+	if config.Postgres != "" {
+		pg, err = postgresql.New(config.Postgres, config.PoolName)
+		if err != nil {
+			return nil, errors.Wrap(err, "could not create postgresql")
+		}
+		err := pg.CreateTable()
+		if err != nil {
+			return nil, errors.Wrap(err, "error creating pool table to store data")
+		}
+	}
+
 	return &Metrics{
 		prysmConcurrent:   prysmConcurrent,
 		theGraph:          theGraph,
@@ -77,6 +91,7 @@ func NewMetrics(
 		withCredList:      config.WithdrawalCredentials,
 		genesisSeconds:    uint64(genesis.GenesisTime.Seconds),
 		slotsInEpoch:      uint64(slotsInEpoch),
+		postgresql:        pg,
 	}, nil
 }
 
