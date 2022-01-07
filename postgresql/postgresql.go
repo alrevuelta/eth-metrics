@@ -32,6 +32,9 @@ CREATE TABLE IF NOT EXISTS t_POOLNAMEPLACEHOLDER (
 );
 `
 
+// TODO: Add missing
+// MissedAttestationsKeys []string
+// LostBalanceKeys        []string
 var insertValidatorPerformance = `
 INSERT INTO t_POOLNAMEPLACEHOLDER(
 	f_epoch,
@@ -56,7 +59,7 @@ DO UPDATE SET
 	 f_epoch_lost_balace=EXCLUDED.f_epoch_lost_balace
 `
 
-// TODO: Add indexes that proposed and that missed
+
 var insertProposalDuties = `
 INSERT INTO t_POOLNAMEPLACEHOLDER(
 	f_epoch,

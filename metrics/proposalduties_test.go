@@ -4,6 +4,7 @@ import (
 	ethTypes "github.com/prysmaticlabs/eth2-types"
 	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
 	//log "github.com/sirupsen/logrus"
+	"github.com/alrevuelta/eth-pools-metrics/schemas"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -114,42 +115,42 @@ func Test_getProposalDuties(t *testing.T) {
 
 	// Scheduled blocks
 	for i := 0; i < 7; i++ {
-		require.Equal(t, metrics.Scheduled[i].valIndex, uint64(i+1))
-		require.Equal(t, metrics.Scheduled[i].slot, ethTypes.Slot(32000+i))
+		require.Equal(t, metrics.Scheduled[i].ValIndex, uint64(i+1))
+		require.Equal(t, metrics.Scheduled[i].Slot, ethTypes.Slot(32000+i))
 	}
 
 	// Proposed blocks
 	for i := 0; i < 5; i++ {
-		require.Equal(t, metrics.Proposed[i].valIndex, uint64(i+1))
-		require.Equal(t, metrics.Proposed[i].slot, ethTypes.Slot(32000+i))
+		require.Equal(t, metrics.Proposed[i].ValIndex, uint64(i+1))
+		require.Equal(t, metrics.Proposed[i].Slot, ethTypes.Slot(32000+i))
 	}
 
 	// Missed blocks
 	for i := 0; i < 2; i++ {
-		require.Equal(t, metrics.Missed[i].valIndex, uint64(i+6))
-		require.Equal(t, metrics.Missed[i].slot, ethTypes.Slot(32005+i))
+		require.Equal(t, metrics.Missed[i].ValIndex, uint64(i+6))
+		require.Equal(t, metrics.Missed[i].Slot, ethTypes.Slot(32005+i))
 	}
 }
 
 func Test_getMissedDuties(t *testing.T) {
 	missedDuties := getMissedDuties(
 		// Schedulled
-		[]Duty{
-			{valIndex: 1, slot: ethTypes.Slot(1000)},
-			{valIndex: 2, slot: ethTypes.Slot(2000)},
-			{valIndex: 3, slot: ethTypes.Slot(3000)},
-			{valIndex: 4, slot: ethTypes.Slot(4000)},
+		[]schemas.Duty{
+			{ValIndex: 1, Slot: ethTypes.Slot(1000)},
+			{ValIndex: 2, Slot: ethTypes.Slot(2000)},
+			{ValIndex: 3, Slot: ethTypes.Slot(3000)},
+			{ValIndex: 4, Slot: ethTypes.Slot(4000)},
 		},
 		// Proposed
-		[]Duty{
-			{valIndex: 1, slot: ethTypes.Slot(1000)},
-			{valIndex: 4, slot: ethTypes.Slot(4000)},
+		[]schemas.Duty{
+			{ValIndex: 1, Slot: ethTypes.Slot(1000)},
+			{ValIndex: 4, Slot: ethTypes.Slot(4000)},
 		},
 	)
 
-	require.Equal(t, missedDuties[0].valIndex, uint64(2))
-	require.Equal(t, missedDuties[0].slot, ethTypes.Slot(2000))
+	require.Equal(t, missedDuties[0].ValIndex, uint64(2))
+	require.Equal(t, missedDuties[0].Slot, ethTypes.Slot(2000))
 
-	require.Equal(t, missedDuties[1].valIndex, uint64(3))
-	require.Equal(t, missedDuties[1].slot, ethTypes.Slot(3000))
+	require.Equal(t, missedDuties[1].ValIndex, uint64(3))
+	require.Equal(t, missedDuties[1].Slot, ethTypes.Slot(3000))
 }
