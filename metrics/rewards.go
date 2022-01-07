@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"github.com/alrevuelta/eth-pools-metrics/prometheus"
+	"github.com/alrevuelta/eth-pools-metrics/schemas"
 	"github.com/pkg/errors"
 	ethTypes "github.com/prysmaticlabs/eth2-types"
 	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
@@ -14,12 +15,6 @@ import (
 
 const gigaWei = uint64(1_000_000_000)
 const depositInGigaWei = uint64(32) * gigaWei
-
-type RewardsMetrics struct {
-	Epoch             uint64
-	TotalDeposits     *big.Int
-	CumulativeRewards *big.Int
-}
 
 func (a *Metrics) StreamRewards() {
 	lastEpoch := uint64(0)
@@ -64,7 +59,7 @@ func (a *Metrics) StreamRewards() {
 	}
 }
 
-func logRewards(metrics RewardsMetrics) {
+func logRewards(metrics schemas.RewardsMetrics) {
 	log.WithFields(log.Fields{
 		"Epoch":             metrics.Epoch,
 		"DepositedAmount":   metrics.TotalDeposits.Uint64(),
@@ -72,7 +67,7 @@ func logRewards(metrics RewardsMetrics) {
 	}).Info("Rewards/Balances:")
 }
 
-func setPrometheusRewards(metrics RewardsMetrics) {
+func setPrometheusRewards(metrics schemas.RewardsMetrics) {
 	prometheus.DepositedAmount.Set(float64(metrics.TotalDeposits.Uint64()))
 	prometheus.CumulativeRewards.Set(float64(metrics.CumulativeRewards.Uint64()))
 }
@@ -97,14 +92,14 @@ func getRewardsFromBalances(
 	return cumulativeRewards, totalDeposits
 }
 
-func (a *Metrics) GetRewards(ctx context.Context, epoch uint64) (RewardsMetrics, error) {
+func (a *Metrics) GetRewards(ctx context.Context, epoch uint64) (schemas.RewardsMetrics, error) {
 	balances, err := a.GetBalances(ctx, epoch)
 	if err != nil {
-		return RewardsMetrics{}, errors.Wrap(err, "could not get balances from beacon chain")
+		return schemas.RewardsMetrics{}, errors.Wrap(err, "could not get balances from beacon chain")
 	}
 
 	cumulativeRewards, totalDeposits := getRewardsFromBalances(balances)
-	rewardsMetrics := RewardsMetrics{
+	rewardsMetrics := schemas.RewardsMetrics{
 		Epoch:             epoch,
 		TotalDeposits:     totalDeposits,
 		CumulativeRewards: cumulativeRewards,

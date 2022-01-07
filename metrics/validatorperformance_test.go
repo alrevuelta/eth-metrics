@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"math/big"
 	"testing"
+	//log "github.com/sirupsen/logrus"
 )
 
 var key1 = ToBytes48([]byte{1})
@@ -18,7 +19,7 @@ var valsPerformance = &ethpb.ValidatorPerformanceResponse{
 	CurrentEffectiveBalances:      []uint64{32 * 1e9, 32 * 1e9, 32 * 1e9},
 	InclusionSlots:                []ethTypes.Slot{0, 0, 0},
 	InclusionDistances:            []ethTypes.Slot{0, 0, 0},
-	CorrectlyVotedSource:          []bool{false, false, true},
+	CorrectlyVotedSource:          []bool{false, true, true},
 	CorrectlyVotedTarget:          []bool{false, false, true},
 	CorrectlyVotedHead:            []bool{false, true, true},
 	BalancesBeforeEpochTransition: []uint64{100, 110, 130},
@@ -41,7 +42,7 @@ func Test_getAttestationMetrics(t *testing.T) {
 	nOfTotalVotes, nOfIncorrectSource, nOfIncorrectTarget, nOfIncorrectHead, missedKeys := getAttestationMetrics(valsPerformance)
 
 	require.Equal(t, nOfTotalVotes, uint64(9))
-	require.Equal(t, nOfIncorrectSource, uint64(2))
+	require.Equal(t, nOfIncorrectSource, uint64(1))
 	require.Equal(t, nOfIncorrectTarget, uint64(2))
 	require.Equal(t, nOfIncorrectHead, uint64(1))
 	require.Equal(t, missedKeys, []string{hex.EncodeToString(key1[:])})

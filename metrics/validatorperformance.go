@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"github.com/alrevuelta/eth-pools-metrics/prometheus"
+	"github.com/alrevuelta/eth-pools-metrics/schemas"
 	"github.com/pkg/errors"
 	ethTypes "github.com/prysmaticlabs/eth2-types"
 	"github.com/prysmaticlabs/prysm/v2/config/params"
@@ -14,20 +15,6 @@ import (
 	"runtime"
 	"time"
 )
-
-type ValidatorPerformanceMetrics struct {
-	Epoch                  uint64
-	NOfTotalVotes          uint64
-	NOfIncorrectSource     uint64
-	NOfIncorrectTarget     uint64
-	NOfIncorrectHead       uint64
-	NOfValidatingKeys      uint64
-	NOfValsWithLessBalance uint64
-	EarnedBalance          *big.Int
-	LosedBalance           *big.Int
-	MissedAttestationsKeys []string
-	LostBalanceKeys        []string
-}
 
 func (a *Metrics) StreamValidatorPerformance() {
 	for {
@@ -48,9 +35,18 @@ func (a *Metrics) StreamValidatorPerformance() {
 
 		metrics := getValidatorPerformanceMetrics(valsPerformance)
 		metrics.Epoch = epoch
+		time, err := a.EpochToTime(epoch)
+		if err != nil {
+			log.Error(err)
+		}
+		metrics.Time = time
 
 		logValidatorPerformance(metrics)
 		setPrometheusValidatorPerformance(metrics)
+		err = a.postgresql.StoreValidatorPerformance(metrics)
+		if err != nil {
+			log.Error(err)
+		}
 
 		// Temporal fix to memory leak. Perhaps having an infinite loop
 		// inside a routinne is not a good idea. TODO
@@ -110,8 +106,8 @@ func getBalanceMetrics(valsPerformance *ethpb.ValidatorPerformanceResponse) (
 	return nOfValsWithDecreasedBalance, nOfValidators, earnedBalance, losedBalance, lostBalanceKeys
 }
 
-func getValidatorPerformanceMetrics(valsPerformance *ethpb.ValidatorPerformanceResponse) ValidatorPerformanceMetrics {
-	metrics := ValidatorPerformanceMetrics{}
+func getValidatorPerformanceMetrics(valsPerformance *ethpb.ValidatorPerformanceResponse) schemas.ValidatorPerformanceMetrics {
+	metrics := schemas.ValidatorPerformanceMetrics{}
 
 	nOfTotalVotes, nOfIncorrectSource, nOfIncorrectTarget, nOfIncorrectHead, missedKeys := getAttestationMetrics(valsPerformance)
 	nOfValsWithDecreasedBalance, nOfValidators, earned, losed, lostKeys := getBalanceMetrics(valsPerformance)
@@ -130,7 +126,7 @@ func getValidatorPerformanceMetrics(valsPerformance *ethpb.ValidatorPerformanceR
 	return metrics
 }
 
-func logValidatorPerformance(metrics ValidatorPerformanceMetrics) {
+func logValidatorPerformance(metrics schemas.ValidatorPerformanceMetrics) {
 	balanceDecreasedPercent := (float64(metrics.NOfValsWithLessBalance) / float64(metrics.NOfValidatingKeys)) * 100
 
 	logEpochSlot := log.WithFields(log.Fields{
@@ -170,7 +166,7 @@ func logValidatorPerformance(metrics ValidatorPerformanceMetrics) {
 	}
 }
 
-func setPrometheusValidatorPerformance(metrics ValidatorPerformanceMetrics) {
+func setPrometheusValidatorPerformance(metrics schemas.ValidatorPerformanceMetrics) {
 	prometheus.NOfTotalVotes.Set(float64(metrics.NOfTotalVotes))
 	prometheus.NOfIncorrectSource.Set(float64(metrics.NOfIncorrectSource))
 	prometheus.NOfIncorrectTarget.Set(float64(metrics.NOfIncorrectTarget))
@@ -201,8 +197,7 @@ func (a *Metrics) FetchValidatorPerformance(ctx context.Context) (*ethpb.Validat
 		return nil, false, 0, errors.Wrap(err, "error getting chain head")
 	}
 
-	// Run metrics in already completed epochs
-	metricsEpoch := uint64(head.HeadEpoch) - 1
+	metricsEpoch := uint64(head.HeadEpoch)
 	metricsSlot := uint64(head.HeadSlot)
 
 	log.Info("Slot: ", ethTypes.Slot(metricsSlot)%params.BeaconConfig().SlotsPerEpoch)

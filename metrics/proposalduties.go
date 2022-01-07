@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/alrevuelta/eth-pools-metrics/prometheus"
+	"github.com/alrevuelta/eth-pools-metrics/schemas"
 	"github.com/pkg/errors"
 	ethTypes "github.com/prysmaticlabs/eth2-types"
 	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
@@ -11,19 +12,6 @@ import (
 	"runtime"
 	"time"
 )
-
-type ProposalDutiesMetrics struct {
-	Epoch     uint64
-	Scheduled []Duty
-	Proposed  []Duty
-	Missed    []Duty
-}
-
-type Duty struct {
-	valIndex uint64
-	slot     ethTypes.Slot
-	graffiti string
-}
 
 // Continuously reports scheduled and fulfilled duties for the validators for
 // the latest finalized epoch
@@ -64,11 +52,11 @@ func (a *Metrics) StreamDuties() {
 	}
 }
 
-func logProposalDuties(metrics *ProposalDutiesMetrics) {
+func logProposalDuties(metrics *schemas.ProposalDutiesMetrics) {
 	for _, d := range metrics.Scheduled {
 		log.WithFields(log.Fields{
-			"ValIndex":       d.valIndex,
-			"Slot":           d.slot,
+			"ValIndex":       d.ValIndex,
+			"Slot":           d.Slot,
 			"Epoch":          metrics.Epoch,
 			"TotalScheduled": len(metrics.Scheduled),
 		}).Info("Scheduled Duty")
@@ -76,38 +64,38 @@ func logProposalDuties(metrics *ProposalDutiesMetrics) {
 
 	for _, d := range metrics.Proposed {
 		log.WithFields(log.Fields{
-			"ValIndex":      d.valIndex,
-			"Slot":          d.slot,
+			"ValIndex":      d.ValIndex,
+			"Slot":          d.Slot,
 			"Epoch":         metrics.Epoch,
-			"Graffiti":      d.graffiti,
+			"Graffiti":      d.Graffiti,
 			"TotalProposed": len(metrics.Proposed),
 		}).Info("Proposed Duty")
 	}
 
 	for _, d := range metrics.Missed {
 		log.WithFields(log.Fields{
-			"ValIndex":    d.valIndex,
-			"Slot":        d.slot,
+			"ValIndex":    d.ValIndex,
+			"Slot":        d.Slot,
 			"Epoch":       metrics.Epoch,
 			"TotalMissed": len(metrics.Missed),
 		}).Info("Missed Duty")
 	}
 }
 
-func setPrometheusProposalDuties(metrics *ProposalDutiesMetrics) {
+func setPrometheusProposalDuties(metrics *schemas.ProposalDutiesMetrics) {
 	prometheus.NOfScheduledBlocks.Set(float64(len(metrics.Scheduled)))
 	prometheus.NOfProposedBlocks.Set(float64(len(metrics.Proposed)))
 
 	for _, d := range metrics.Proposed {
 		prometheus.ProposedBlocks.WithLabelValues(
 			UToStr(metrics.Epoch),
-			UToStr(d.valIndex)).Inc()
+			UToStr(d.ValIndex)).Inc()
 	}
 
 	for _, d := range metrics.Missed {
 		prometheus.MissedBlocks.WithLabelValues(
 			UToStr(metrics.Epoch),
-			UToStr(d.valIndex)).Inc()
+			UToStr(d.ValIndex)).Inc()
 	}
 }
 
@@ -149,12 +137,12 @@ func (a *Metrics) FetchDuties(
 // of performed proposals
 func getProposalDuties(
 	duties *ethpb.DutiesResponse,
-	blocks *ethpb.ListBeaconBlocksResponse) *ProposalDutiesMetrics {
+	blocks *ethpb.ListBeaconBlocksResponse) *schemas.ProposalDutiesMetrics {
 
-	metrics := &ProposalDutiesMetrics{
-		Scheduled: make([]Duty, 0),
-		Proposed:  make([]Duty, 0),
-		Missed:    make([]Duty, 0),
+	metrics := &schemas.ProposalDutiesMetrics{
+		Scheduled: make([]schemas.Duty, 0),
+		Proposed:  make([]schemas.Duty, 0),
+		Missed:    make([]schemas.Duty, 0),
 	}
 
 	if duties == nil {
@@ -170,7 +158,7 @@ func getProposalDuties(
 			valIndex := uint64(duties.CurrentEpochDuties[i].ValidatorIndex)
 			// Most likely there will be only a single proposal per epoch
 			for _, propSlot := range duties.CurrentEpochDuties[i].ProposerSlots {
-				metrics.Scheduled = append(metrics.Scheduled, Duty{valIndex: valIndex, slot: propSlot})
+				metrics.Scheduled = append(metrics.Scheduled, schemas.Duty{ValIndex: valIndex, Slot: propSlot})
 			}
 		}
 	}
@@ -186,11 +174,11 @@ func getProposalDuties(
 		for _, block := range blocks.BlockContainers {
 			propIndex, slot, graffiti := getBlockParams(block)
 			// If the block at the slot was proposed by us (valIndex)
-			if duty.valIndex == propIndex && duty.slot == slot {
-				metrics.Proposed = append(metrics.Proposed, Duty{
-					valIndex: propIndex,
-					slot:     slot,
-					graffiti: graffiti})
+			if duty.ValIndex == propIndex && duty.Slot == slot {
+				metrics.Proposed = append(metrics.Proposed, schemas.Duty{
+					ValIndex: propIndex,
+					Slot:     slot,
+					Graffiti: graffiti})
 				break
 			}
 		}
@@ -201,13 +189,13 @@ func getProposalDuties(
 	return metrics
 }
 
-func getMissedDuties(scheduled []Duty, proposed []Duty) []Duty {
-	missed := make([]Duty, 0)
+func getMissedDuties(scheduled []schemas.Duty, proposed []schemas.Duty) []schemas.Duty {
+	missed := make([]schemas.Duty, 0)
 
 	for _, s := range scheduled {
 		found := false
 		for _, p := range proposed {
-			if s.slot == p.slot && s.valIndex == p.valIndex {
+			if s.Slot == p.Slot && s.ValIndex == p.ValIndex {
 				found = true
 				break
 			}
