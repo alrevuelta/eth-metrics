@@ -34,6 +34,8 @@ type Metrics struct {
 	// TODO: Remove, each metric task has its pace
 	Epoch uint64
 	Slot  uint64
+
+	PoolName string
 }
 
 func NewMetrics(
@@ -95,6 +97,7 @@ func NewMetrics(
 		genesisSeconds:    uint64(genesis.GenesisTime.Seconds),
 		slotsInEpoch:      uint64(slotsInEpoch),
 		postgresql:        pg,
+		PoolName:          config.PoolName,
 	}, nil
 }
 

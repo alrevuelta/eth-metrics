@@ -40,12 +40,16 @@ func (a *Metrics) StreamValidatorPerformance() {
 			log.Error(err)
 		}
 		metrics.Time = time
+		metrics.PoolName = a.PoolName
 
 		logValidatorPerformance(metrics)
 		setPrometheusValidatorPerformance(metrics)
-		err = a.postgresql.StoreValidatorPerformance(metrics)
-		if err != nil {
-			log.Error(err)
+
+		if a.postgresql != nil {
+			err = a.postgresql.StoreValidatorPerformance(metrics)
+			if err != nil {
+				log.Error(err)
+			}
 		}
 
 		// Temporal fix to memory leak. Perhaps having an infinite loop

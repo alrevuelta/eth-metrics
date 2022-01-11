@@ -8,6 +8,7 @@ import (
 
 type ValidatorPerformanceMetrics struct {
 	Time                   time.Time
+	PoolName               string
 	Epoch                  uint64
 	NOfTotalVotes          uint64
 	NOfIncorrectSource     uint64
