@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/alrevuelta/eth-pools-metrics/config"
 	"github.com/alrevuelta/eth-pools-metrics/metrics"
+	"github.com/alrevuelta/eth-pools-metrics/price"
 	"github.com/alrevuelta/eth-pools-metrics/prometheus"
 	log "github.com/sirupsen/logrus"
 	"os"
@@ -14,7 +15,7 @@ import (
 func main() {
 	config, err := config.NewCliConfig()
 	if err != nil {
-		log.Fatal("Error creating cli config", err)
+		log.Fatal(err)
 	}
 
 	prometheus.Run(config.PrometheusPort)
@@ -24,9 +25,15 @@ func main() {
 		config)
 
 	if err != nil {
-		log.Fatal("Error creating new metrics: ", err)
+		log.Fatal(err)
 	}
 
+	price, err := price.NewPrice(config.Postgres)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	go price.Run()
 	metrics.Run()
 
 	// Wait for signal.

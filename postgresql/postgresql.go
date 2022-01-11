@@ -4,18 +4,16 @@ import (
 	"context"
 	"github.com/alrevuelta/eth-pools-metrics/schemas"
 	"github.com/jackc/pgx/v4"
+	"time"
 	//log "github.com/sirupsen/logrus"
-	"strings"
 )
 
-var poolNamePlaceholder = "POOLNAMEPLACEHOLDER"
-
 // If a new field is added, the table has to be manually reset
-var createPool = `
-CREATE TABLE IF NOT EXISTS t_POOLNAMEPLACEHOLDER (
-	 f_epoch BIGINT PRIMARY KEY,
-	 f_epoch_timestamp TIMESTAMPTZ NOT NULL,
+var createPoolsMetricsTable = `
+CREATE TABLE IF NOT EXISTS t_pools_metrics_summary (
+	 f_epoch BIGINT,
 	 f_pool TEXT,
+	 f_epoch_timestamp TIMESTAMPTZ NOT NULL,
 
 	 f_n_total_votes BIGINT,
 	 f_n_incorrect_source BIGINT,
@@ -26,19 +24,41 @@ CREATE TABLE IF NOT EXISTS t_POOLNAMEPLACEHOLDER (
 	 f_epoch_earned_balance BIGINT,
 	 f_epoch_lost_balace BIGINT,
 
-	 f_eth_price_usd BIGINT,
-
 	 f_n_scheduled_blocks BIGINT,
-	 f_n_proposed_blocks BIGINT
+	 f_n_proposed_blocks BIGINT,
+
+	 PRIMARY KEY (f_epoch, f_pool)
 );
 `
+
+// If a new field is added, the table has to be manually reset
+var createEthPriceTable = `
+CREATE TABLE IF NOT EXISTS t_eth_price (
+	 f_timestamp TIMESTAMPTZ NOT NULL PRIMARY KEY,
+	 f_eth_price_usd FLOAT
+);
+`
+
+var insertEthPrice = `
+INSERT INTO t_eth_price(
+	f_timestamp,
+	f_eth_price_usd)
+VALUES ($1, $2)
+ON CONFLICT (f_timestamp)
+DO UPDATE SET
+   f_eth_price_usd=EXCLUDED.f_eth_price_usd
+`
+
+// TODO: Store price
+//f_eth_price_usd BIGINT,
 
 // TODO: Add missing
 // MissedAttestationsKeys []string
 // LostBalanceKeys        []string
 var insertValidatorPerformance = `
-INSERT INTO t_POOLNAMEPLACEHOLDER(
+INSERT INTO t_pools_metrics_summary(
 	f_epoch,
+	f_pool,
 	f_epoch_timestamp,
 	f_n_total_votes,
 	f_n_incorrect_source,
@@ -48,8 +68,8 @@ INSERT INTO t_POOLNAMEPLACEHOLDER(
 	f_n_valitadors_with_less_balace,
 	f_epoch_earned_balance,
 	f_epoch_lost_balace)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-ON CONFLICT (f_epoch)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+ON CONFLICT (f_epoch, f_pool)
 DO UPDATE SET
    f_epoch_timestamp=EXCLUDED.f_epoch_timestamp,
    f_n_total_votes=EXCLUDED.f_n_total_votes,
@@ -64,7 +84,7 @@ DO UPDATE SET
 
 // TODO: Add f_epoch_timestamp
 var insertProposalDuties = `
-INSERT INTO t_POOLNAMEPLACEHOLDER(
+INSERT INTO t_pools_metrics_summary(
 	f_epoch,
 	f_n_scheduled_blocks,
 	f_n_proposed_blocks)
@@ -81,7 +101,7 @@ type Postgresql struct {
 }
 
 // postgresql://user:password@netloc:port/dbname
-func New(postgresEndpoint string, poolName string) (*Postgresql, error) {
+func New(postgresEndpoint string) (*Postgresql, error) {
 	conn, err := pgx.Connect(context.Background(), postgresEndpoint)
 
 	if err != nil {
@@ -90,27 +110,31 @@ func New(postgresEndpoint string, poolName string) (*Postgresql, error) {
 
 	return &Postgresql{
 		postgresql: conn,
-		PoolName:   poolName,
 	}, nil
 }
 
 func (a *Postgresql) CreateTable() error {
 	if _, err := a.postgresql.Exec(
 		context.Background(),
-		a.GetQuery(createPool)); err != nil {
+		createPoolsMetricsTable); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (a *Postgresql) GetQuery(query string) string {
-	return strings.Replace(query, poolNamePlaceholder, a.PoolName, -1)
+func (a *Postgresql) CreateEthPriceTable() error {
+	if _, err := a.postgresql.Exec(
+		context.Background(),
+		createEthPriceTable); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (a *Postgresql) StoreProposalDuties(epoch uint64, scheduledBlocks uint64, proposedBlocks uint64) error {
 	_, err := a.postgresql.Exec(
 		context.Background(),
-		a.GetQuery(insertProposalDuties),
+		insertProposalDuties,
 		epoch,
 		scheduledBlocks,
 		proposedBlocks)
@@ -124,8 +148,9 @@ func (a *Postgresql) StoreProposalDuties(epoch uint64, scheduledBlocks uint64, p
 func (a *Postgresql) StoreValidatorPerformance(validatorPerformance schemas.ValidatorPerformanceMetrics) error {
 	_, err := a.postgresql.Exec(
 		context.Background(),
-		a.GetQuery(insertValidatorPerformance),
+		insertValidatorPerformance,
 		validatorPerformance.Epoch,
+		validatorPerformance.PoolName,
 		validatorPerformance.Time,
 		validatorPerformance.NOfTotalVotes,
 		validatorPerformance.NOfIncorrectSource,
@@ -135,6 +160,19 @@ func (a *Postgresql) StoreValidatorPerformance(validatorPerformance schemas.Vali
 		validatorPerformance.NOfValsWithLessBalance,
 		validatorPerformance.EarnedBalance.Int64(),
 		validatorPerformance.LosedBalance.Int64())
+
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *Postgresql) StoreEthPrice(ethPriceUsd float32) error {
+	_, err := a.postgresql.Exec(
+		context.Background(),
+		insertEthPrice,
+		time.Now(),
+		ethPriceUsd)
 
 	if err != nil {
 		return err

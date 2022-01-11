@@ -34,6 +34,8 @@ type Metrics struct {
 	// TODO: Remove, each metric task has its pace
 	Epoch uint64
 	Slot  uint64
+
+	PoolName string
 }
 
 func NewMetrics(
@@ -75,7 +77,7 @@ func NewMetrics(
 
 	var pg *postgresql.Postgresql
 	if config.Postgres != "" {
-		pg, err = postgresql.New(config.Postgres, config.PoolName)
+		pg, err = postgresql.New(config.Postgres)
 		if err != nil {
 			return nil, errors.Wrap(err, "could not create postgresql")
 		}
@@ -95,6 +97,7 @@ func NewMetrics(
 		genesisSeconds:    uint64(genesis.GenesisTime.Seconds),
 		slotsInEpoch:      uint64(slotsInEpoch),
 		postgresql:        pg,
+		PoolName:          config.PoolName,
 	}, nil
 }
 
@@ -104,7 +107,6 @@ func (a *Metrics) Run() {
 	go a.StreamDeposits()
 	go a.StreamValidatorPerformance()
 	go a.StreamValidatorStatus()
-	go a.StreamEthPrice()
 }
 
 func (a *Metrics) EpochToTime(epoch uint64) (time.Time, error) {
