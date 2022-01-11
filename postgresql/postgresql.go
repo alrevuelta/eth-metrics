@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/alrevuelta/eth-pools-metrics/schemas"
 	"github.com/jackc/pgx/v4"
+	"time"
 	//log "github.com/sirupsen/logrus"
 )
 
@@ -28,6 +29,24 @@ CREATE TABLE IF NOT EXISTS t_pools_metrics_summary (
 
 	 PRIMARY KEY (f_epoch, f_pool)
 );
+`
+
+// If a new field is added, the table has to be manually reset
+var createEthPriceTable = `
+CREATE TABLE IF NOT EXISTS t_eth_price (
+	 f_timestamp TIMESTAMPTZ NOT NULL PRIMARY KEY,
+	 f_eth_price_usd FLOAT
+);
+`
+
+var insertEthPrice = `
+INSERT INTO t_eth_price(
+	f_timestamp,
+	f_eth_price_usd)
+VALUES ($1, $2)
+ON CONFLICT (f_timestamp)
+DO UPDATE SET
+   f_eth_price_usd=EXCLUDED.f_eth_price_usd
 `
 
 // TODO: Store price
@@ -82,7 +101,7 @@ type Postgresql struct {
 }
 
 // postgresql://user:password@netloc:port/dbname
-func New(postgresEndpoint string, poolName string) (*Postgresql, error) {
+func New(postgresEndpoint string) (*Postgresql, error) {
 	conn, err := pgx.Connect(context.Background(), postgresEndpoint)
 
 	if err != nil {
@@ -91,7 +110,6 @@ func New(postgresEndpoint string, poolName string) (*Postgresql, error) {
 
 	return &Postgresql{
 		postgresql: conn,
-		PoolName:   poolName,
 	}, nil
 }
 
@@ -99,6 +117,15 @@ func (a *Postgresql) CreateTable() error {
 	if _, err := a.postgresql.Exec(
 		context.Background(),
 		createPoolsMetricsTable); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *Postgresql) CreateEthPriceTable() error {
+	if _, err := a.postgresql.Exec(
+		context.Background(),
+		createEthPriceTable); err != nil {
 		return err
 	}
 	return nil
@@ -133,6 +160,19 @@ func (a *Postgresql) StoreValidatorPerformance(validatorPerformance schemas.Vali
 		validatorPerformance.NOfValsWithLessBalance,
 		validatorPerformance.EarnedBalance.Int64(),
 		validatorPerformance.LosedBalance.Int64())
+
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *Postgresql) StoreEthPrice(ethPriceUsd float32) error {
+	_, err := a.postgresql.Exec(
+		context.Background(),
+		insertEthPrice,
+		time.Now(),
+		ethPriceUsd)
 
 	if err != nil {
 		return err
