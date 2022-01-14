@@ -2,9 +2,10 @@ package metrics
 
 import (
 	//"github.com/alrevuelta/eth-pools-metrics/prometheus"
-	log "github.com/sirupsen/logrus"
 	"runtime"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // TODO: Temporal solution:
@@ -13,16 +14,25 @@ import (
 // - Fetches the deposits every hour
 func (a *Metrics) StreamDeposits() {
 	for {
+
 		pubKeysDeposited, err := a.theGraph.GetAllDepositedKeys()
 		if err != nil {
 			log.Error(err)
 			time.Sleep(10 * 60 * time.Second)
 			continue
 		}
+		/* TODO: Check that postgresql is set
+		pubKeysDeposited, err := a.postgresql.GetPoolKeys(a.PoolName)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		*/
+
 		a.depositedKeys = pubKeysDeposited
 
 		log.WithFields(log.Fields{
-			"DepositedValidators": len(pubKeysDeposited),
+			"DepositedValidators": len(a.depositedKeys),
 			// TODO: Print epoch
 			//"Slot":     slot,
 			//"Epoch":    uint64(slot) % a.slotsInEpoch,
