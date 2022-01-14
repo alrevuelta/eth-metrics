@@ -2,10 +2,13 @@ package postgresql
 
 import (
 	"context"
-	"github.com/alrevuelta/eth-pools-metrics/schemas"
-	"github.com/jackc/pgx/v4"
+	"fmt"
 	"time"
-	//log "github.com/sirupsen/logrus"
+
+	"github.com/alrevuelta/eth-pools-metrics/schemas"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/jackc/pgx/v4"
+	"github.com/pkg/errors"
 )
 
 // If a new field is added, the table has to be manually reset
@@ -178,4 +181,30 @@ func (a *Postgresql) StoreEthPrice(ethPriceUsd float32) error {
 		return err
 	}
 	return nil
+}
+
+func (a *Postgresql) GetPoolKeys(poolName string) ([][]byte, error) {
+	keys := make([][]byte, 0)
+	rows, err := a.postgresql.Query(context.Background(), "select f_key from t_deposits where f_pool=$1", poolName)
+	if err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf("%s: %s", "could not get keys for pool", poolName))
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		values, err := rows.Values()
+		if err != nil {
+			return nil, err
+		}
+
+		for _, keyStr := range values {
+			byteKey, err := hexutil.Decode(fmt.Sprintf("0x%s", keyStr.(string)))
+			if err != nil {
+				return nil, err
+			}
+			keys = append(keys, byteKey)
+		}
+	}
+
+	return keys, nil
 }
