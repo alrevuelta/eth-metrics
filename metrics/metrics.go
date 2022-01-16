@@ -29,6 +29,7 @@ type Metrics struct {
 	depositedKeys  [][]byte
 	validatingKeys [][]byte
 	withCredList   []string
+	fromAddrList   []string
 	theGraph       *thegraph.Thegraph
 	postgresql     *postgresql.Postgresql
 
@@ -96,6 +97,7 @@ func NewMetrics(
 		validatorClient:   validatorClient,
 		nodeClient:        nodeClient,
 		withCredList:      config.WithdrawalCredentials,
+		fromAddrList:      config.FromAddress,
 		genesisSeconds:    uint64(genesis.GenesisTime.Seconds),
 		slotsInEpoch:      uint64(slotsInEpoch),
 		postgresql:        pg,
