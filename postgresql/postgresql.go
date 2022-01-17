@@ -3,6 +3,7 @@ package postgresql
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/alrevuelta/eth-pools-metrics/schemas"
@@ -207,4 +208,47 @@ func (a *Postgresql) GetPoolKeys(poolName string) ([][]byte, error) {
 	}
 
 	return keys, nil
+}
+
+func (a *Postgresql) GetKeysByFromAddresses(fromAddresses []string) ([][]byte, error) {
+	rows, err := a.postgresql.Query(context.Background(),
+		`select encode(f_validator_pubkey, 'hex')
+		from t_eth1_deposits
+		where (`+getDepositsWhereClause(fromAddresses)+")")
+
+	if err != nil {
+		return nil, errors.Wrap(err,
+			fmt.Sprintf("%s: %s", "could not get keys for pool",
+				fromAddresses))
+	}
+
+	keys := make([][]byte, 0)
+	defer rows.Close()
+	for rows.Next() {
+		values, err := rows.Values()
+		if err != nil {
+			return nil, err
+		}
+
+		for _, keyStr := range values {
+			byteKey, err := hexutil.Decode(fmt.Sprintf("0x%s", keyStr.(string)))
+			if err != nil {
+				return nil, err
+			}
+			keys = append(keys, byteKey)
+		}
+	}
+
+	return keys, nil
+}
+
+func getDepositsWhereClause(fromAddresses []string) string {
+	whereElements := make([]string, 0)
+	for _, address := range fromAddresses {
+		whereElements = append(
+			whereElements,
+			fmt.Sprintf("f_eth1_sender = decode('%s', 'hex')",
+				strings.TrimPrefix(address, "0x")))
+	}
+	return strings.Join(whereElements, " or ")
 }

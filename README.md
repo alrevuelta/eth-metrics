@@ -43,6 +43,45 @@ git clone https://github.com/alrevuelta/eth-pools-metrics.git
 go build
 ```
 
+## Requirements
+
+Depending on how you want to use `eth-metrics`, you may need to run some extra software:
+* Ethereum 2.0 deposits can be fetched in two ways: from [thegraph](https://thegraph.com/) or from a local database. Depending on your use case, you may want to use one or the other. For large amounts of validators, perhaps using a local database with pre-indexed deposits is the best approach, since thegraph has some api call limits.
+* If you want to access the metrics, you may want to deploy `prometheus`.
+
+### Custom deposits database
+
+If you opt for running your own deposits indexer instead of just relying on thegraph, we recommend `chaind` project. Assuming you already have a postgres database running, you can run chaind as follows. This will create a `t_eth1_deposits` table that will be populated with all deposits to the deposits smart contract. Note that this table can take few hours to sync.
+
+```console
+./chaind \
+--blocks.enable=false \
+--finalizer.enable=false \
+--summarizer.enable=false \
+--summarizer.epochs.enable=false \
+--summarizer.blocks.enable=false \
+--summarizer.validators.enable=false \
+--validators.enable=false \
+--validators.balances.enable=false \
+--beacon-committees.enable=false \
+--proposer-duties.enable=false \
+--sync-committees.enable=false \
+--eth1deposits.enable=true \
+--eth1deposits.start-block=11185311 \
+--eth1client.address=https://your-eth1-endpoint \
+--chaindb.url=postgresql://postgres:password@url:5432/user \
+--eth2client.address="http://your-eth2-endpoint" \
+--log-level=trace
+```
+
+### Prometheus
+
+You can expose the metrics to access them in a dashboard like grafana by running `prometheus` with [this configuration](https://github.com/alrevuelta/eth-pools-metrics/blob/master/docs/prometheus.yml).
+
+Some notes:
+* Block 11185311 is used as starting block for mainnet, that was when the first deposit was registered.
+* `chaind` can index other data, but only eth1 deposits is enabled.
+
 ## Usage
 
 The following flags are available:

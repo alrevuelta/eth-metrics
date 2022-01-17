@@ -14,13 +14,19 @@ import (
 // - Fetches the deposits every hour
 func (a *Metrics) StreamDeposits() {
 	for {
-
-		pubKeysDeposited, err := a.theGraph.GetAllDepositedKeys()
+		var pubKeysDeposited [][]byte
+		var err error
+		if a.postgresql != nil {
+			pubKeysDeposited, err = a.postgresql.GetKeysByFromAddresses(a.fromAddrList)
+		} else {
+			pubKeysDeposited, err = a.theGraph.GetAllDepositedKeys()
+		}
 		if err != nil {
 			log.Error(err)
 			time.Sleep(10 * 60 * time.Second)
 			continue
 		}
+
 		/* TODO: Check that postgresql is set
 		pubKeysDeposited, err := a.postgresql.GetPoolKeys(a.PoolName)
 		if err != nil {
@@ -39,7 +45,7 @@ func (a *Metrics) StreamDeposits() {
 		}).Info("Deposits:")
 
 		// Temporal fix to memory leak. Perhaps having an infinite loop
-		// inside a routinne is not a good idea. TODO
+		// inside a routine is not a good idea. TODO
 		runtime.GC()
 
 		time.Sleep(60 * 60 * time.Second)
