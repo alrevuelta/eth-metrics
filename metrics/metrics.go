@@ -30,6 +30,7 @@ type Metrics struct {
 	validatingKeys [][]byte
 	withCredList   []string
 	fromAddrList   []string
+	eth1Address    string
 	theGraph       *thegraph.Thegraph
 	postgresql     *postgresql.Postgresql
 
@@ -100,6 +101,7 @@ func NewMetrics(
 		fromAddrList:      config.FromAddress,
 		genesisSeconds:    uint64(genesis.GenesisTime.Seconds),
 		slotsInEpoch:      uint64(slotsInEpoch),
+		eth1Address:       config.Eth1Address,
 		postgresql:        pg,
 		PoolName:          config.PoolName,
 	}, nil
