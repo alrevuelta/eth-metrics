@@ -57,7 +57,6 @@ func GetRocketPoolKeys(eth1Address string) ([][]byte, error) {
 			MinipoolsByAddress[minipoolAddress.Hex()] = info
 			statsNew++
 		}
-		break
 	}
 
 	log.WithFields(log.Fields{
