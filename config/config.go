@@ -2,9 +2,10 @@ package config
 
 import (
 	"flag"
+	"os"
+
 	"github.com/alrevuelta/eth-pools-metrics/pools"
 	log "github.com/sirupsen/logrus"
-	"os"
 )
 
 // By default the release is a custom build. CI takes care of upgrading it with
@@ -19,6 +20,7 @@ type Config struct {
 	BeaconRpcEndpoint     string
 	PrometheusPort        int
 	Postgres              string
+	Eth1Address           string
 }
 
 // custom implementation to allow providing the same flag multiple times
@@ -47,6 +49,7 @@ func NewCliConfig() (*Config, error) {
 	var version = flag.Bool("version", false, "Prints the release version and exits")
 	var poolName = flag.String("pool-name", "required", "Name of the pool being monitored. If known, addresses are loaded by default (see known pools)")
 	var postgres = flag.String("postgres", "", "Postgres db endpoit: postgresql://user:password@netloc:port/dbname (optional)")
+	var eth1Address = flag.String("eth1address", "", "Ethereum 1 http endpoint. To be used by rocket pool")
 	flag.Parse()
 
 	if *version {
@@ -77,6 +80,7 @@ func NewCliConfig() (*Config, error) {
 		WithdrawalCredentials: withdrawalCredentials,
 		FromAddress:           fromAddress,
 		Postgres:              *postgres,
+		Eth1Address:           *eth1Address,
 	}
 	logConfig(conf)
 	return conf, nil
@@ -91,5 +95,6 @@ func logConfig(cfg *Config) {
 		"Network":               cfg.Network,
 		"PrometheusPort":        cfg.PrometheusPort,
 		"Postgres":              cfg.Postgres,
+		"Eth1Address":           cfg.Eth1Address,
 	}).Info("Cli Config:")
 }

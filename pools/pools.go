@@ -102,4 +102,8 @@ var PoolsAddresses = map[string][]string{
 	"poloniex": {
 		"0x0038598ecb3b308ebc6c6e2c635bacaa3c5298a3",
 	},
+	// See rocketpool.go
+	"rocketpool": {
+		"",
+	},
 }

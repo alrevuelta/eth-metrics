@@ -3,6 +3,10 @@ package metrics
 import (
 	"context"
 	"encoding/hex"
+	"math/big"
+	"runtime"
+	"time"
+
 	"github.com/alrevuelta/eth-pools-metrics/prometheus"
 	"github.com/alrevuelta/eth-pools-metrics/schemas"
 	"github.com/pkg/errors"
@@ -11,9 +15,6 @@ import (
 	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
 	"github.com/prysmaticlabs/prysm/v2/time/slots"
 	log "github.com/sirupsen/logrus"
-	"math/big"
-	"runtime"
-	"time"
 )
 
 func (a *Metrics) StreamValidatorPerformance() {
@@ -204,7 +205,7 @@ func (a *Metrics) FetchValidatorPerformance(ctx context.Context) (*ethpb.Validat
 	metricsEpoch := uint64(head.HeadEpoch)
 	metricsSlot := uint64(head.HeadSlot)
 
-	log.Info("Slot: ", ethTypes.Slot(metricsSlot)%params.BeaconConfig().SlotsPerEpoch)
+	//log.Info("Slot: ", ethTypes.Slot(metricsSlot)%params.BeaconConfig().SlotsPerEpoch)
 
 	if a.validatingKeys == nil {
 		log.Warn("No active keys to get vals performance")

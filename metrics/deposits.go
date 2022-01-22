@@ -5,6 +5,8 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/alrevuelta/eth-pools-metrics/pools"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -16,11 +18,16 @@ func (a *Metrics) StreamDeposits() {
 	for {
 		var pubKeysDeposited [][]byte
 		var err error
-		if a.postgresql != nil {
+
+		// TODO: Don't handle it as a special case
+		if a.PoolName == "rocketpool" {
+			pubKeysDeposited, err = pools.GetRocketPoolKeys(a.eth1Address)
+		} else if a.postgresql != nil {
 			pubKeysDeposited, err = a.postgresql.GetKeysByFromAddresses(a.fromAddrList)
 		} else {
 			pubKeysDeposited, err = a.theGraph.GetAllDepositedKeys()
 		}
+
 		if err != nil {
 			log.Error(err)
 			time.Sleep(10 * 60 * time.Second)
