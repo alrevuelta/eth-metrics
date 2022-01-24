@@ -104,7 +104,7 @@ func NewMetrics(
 }
 
 func (a *Metrics) Run() {
-	go a.StreamDuties()
+	//go a.StreamDuties()
 	go a.StreamRewards()
 	go a.StreamDeposits()
 	go a.StreamValidatorPerformance()
