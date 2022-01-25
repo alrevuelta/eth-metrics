@@ -106,4 +106,8 @@ var PoolsAddresses = map[string][]string{
 	"rocketpool": {
 		"",
 	},
+	"cream": {
+		"0xb2c43455ee556dea95c0599b0d3f7d0abbf32fdb",
+		"0x197939c1ca20c2b506d6811d8b6cdb3394471074",
+	},
 }
