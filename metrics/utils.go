@@ -2,10 +2,11 @@ package metrics
 
 import (
 	"context"
-	"github.com/pkg/errors"
-	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
-	"google.golang.org/protobuf/types/known/emptypb"
 	"strconv"
+
+	"github.com/pkg/errors"
+	ethpb "github.com/prysmaticlabs/prysm/proto/prysm/v1alpha1"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func GetChainHead(ctx context.Context, beaconChainClient ethpb.BeaconChainClient) (*ethpb.ChainHead, error) {

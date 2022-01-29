@@ -1,10 +1,11 @@
 package metrics
 
 import (
-	ethTypes "github.com/prysmaticlabs/eth2-types"
-	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	ethTypes "github.com/prysmaticlabs/eth2-types"
+	ethpb "github.com/prysmaticlabs/prysm/proto/prysm/v1alpha1"
+	"github.com/stretchr/testify/require"
 )
 
 var k1 = ToBytes48([]byte{1})

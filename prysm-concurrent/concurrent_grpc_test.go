@@ -4,9 +4,10 @@ import (
 	"context"
 	//"github.com/ethereum/go-ethereum/common/hexutil"
 	ethTypes "github.com/prysmaticlabs/eth2-types"
-	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
+	ethpb "github.com/prysmaticlabs/prysm/proto/prysm/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+
 	//"math/big"
 	//"encoding/hex"
 	"testing"

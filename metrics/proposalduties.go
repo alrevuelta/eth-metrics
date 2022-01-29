@@ -3,14 +3,15 @@ package metrics
 import (
 	"context"
 	"fmt"
+	"runtime"
+	"time"
+
 	"github.com/alrevuelta/eth-pools-metrics/prometheus"
 	"github.com/alrevuelta/eth-pools-metrics/schemas"
 	"github.com/pkg/errors"
 	ethTypes "github.com/prysmaticlabs/eth2-types"
-	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
+	ethpb "github.com/prysmaticlabs/prysm/proto/prysm/v1alpha1"
 	log "github.com/sirupsen/logrus"
-	"runtime"
-	"time"
 )
 
 // Continuously reports scheduled and fulfilled duties for the validators for
@@ -213,14 +214,24 @@ func getBlockParams(block *ethpb.BeaconBlockContainer) (uint64, ethTypes.Slot, s
 	var slot ethTypes.Slot
 	var graffiti string
 
-	if block.GetAltairBlock() == nil {
+	log.Info(block)
+	log.Info(block.Block)
+	log.Info(block.GetBellatrixBlock().Block)
+
+	if block.GetPhase0Block() != nil {
 		propIndex = uint64(block.GetPhase0Block().Block.ProposerIndex)
 		slot = block.GetPhase0Block().Block.Slot
 		graffiti = fmt.Sprintf("%s", block.GetPhase0Block().Block.Body.Graffiti)
-	} else {
+	} else if block.GetAltairBlock() != nil {
 		propIndex = uint64(block.GetAltairBlock().Block.ProposerIndex)
 		slot = block.GetAltairBlock().Block.Slot
 		graffiti = fmt.Sprintf("%s", block.GetAltairBlock().Block.Body.Graffiti)
+	} else if block.GetBellatrixBlock() != nil {
+		propIndex = uint64(block.GetBellatrixBlock().Block.ProposerIndex)
+		slot = block.GetBellatrixBlock().Block.Slot
+		graffiti = fmt.Sprintf("%s", block.GetBellatrixBlock().Block.Body.Graffiti)
+	} else {
+		log.Fatal("Could not find a supported block type in BeaconBlockContainer")
 	}
 	// TODO: Add merge block when implemented
 	return propIndex, slot, graffiti

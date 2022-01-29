@@ -9,8 +9,8 @@ import (
 	prysmconcurrent "github.com/alrevuelta/eth-pools-metrics/prysm-concurrent"
 	"github.com/alrevuelta/eth-pools-metrics/thegraph"
 	"github.com/pkg/errors"
-	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
-	"github.com/prysmaticlabs/prysm/v2/time/slots"
+	ethpb "github.com/prysmaticlabs/prysm/proto/prysm/v1alpha1"
+	"github.com/prysmaticlabs/prysm/time/slots"
 
 	//log "github.com/sirupsen/logrus"
 	ethTypes "github.com/prysmaticlabs/eth2-types"
@@ -104,7 +104,7 @@ func NewMetrics(
 }
 
 func (a *Metrics) Run() {
-	//go a.StreamDuties()
+	go a.StreamDuties()
 	go a.StreamRewards()
 	go a.StreamDeposits()
 	go a.StreamValidatorPerformance()

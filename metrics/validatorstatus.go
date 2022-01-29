@@ -2,12 +2,13 @@ package metrics
 
 import (
 	"context"
-	"github.com/alrevuelta/eth-pools-metrics/prometheus"
-	"github.com/alrevuelta/eth-pools-metrics/schemas"
-	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
-	log "github.com/sirupsen/logrus"
 	"runtime"
 	"time"
+
+	"github.com/alrevuelta/eth-pools-metrics/prometheus"
+	"github.com/alrevuelta/eth-pools-metrics/schemas"
+	ethpb "github.com/prysmaticlabs/prysm/proto/prysm/v1alpha1"
+	log "github.com/sirupsen/logrus"
 )
 
 // TODO: Handle race condition

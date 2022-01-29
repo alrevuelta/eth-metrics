@@ -2,15 +2,16 @@ package metrics
 
 import (
 	"context"
+	"math/big"
+	"runtime"
+	"time"
+
 	"github.com/alrevuelta/eth-pools-metrics/prometheus"
 	"github.com/alrevuelta/eth-pools-metrics/schemas"
 	"github.com/pkg/errors"
 	ethTypes "github.com/prysmaticlabs/eth2-types"
-	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
+	ethpb "github.com/prysmaticlabs/prysm/proto/prysm/v1alpha1"
 	log "github.com/sirupsen/logrus"
-	"math/big"
-	"runtime"
-	"time"
 )
 
 const gigaWei = uint64(1_000_000_000)

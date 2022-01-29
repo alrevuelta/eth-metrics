@@ -1,10 +1,11 @@
 package metrics
 
 import (
-	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
-	"github.com/stretchr/testify/require"
 	"math/big"
 	"testing"
+
+	ethpb "github.com/prysmaticlabs/prysm/proto/prysm/v1alpha1"
+	"github.com/stretchr/testify/require"
 )
 
 var key = ToBytes48([]byte{1})

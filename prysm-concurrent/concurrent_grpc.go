@@ -2,10 +2,12 @@ package prysmconcurrent
 
 import (
 	"context"
-	"github.com/pkg/errors"
-	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
-	"google.golang.org/grpc"
 	"sync"
+
+	"github.com/pkg/errors"
+	ethpb "github.com/prysmaticlabs/prysm/proto/prysm/v1alpha1"
+	"google.golang.org/grpc"
+
 	//"math/big"
 	"golang.org/x/sync/errgroup"
 
