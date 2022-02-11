@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
 	"github.com/prysmaticlabs/prysm/v2/time/slots"
+	log "github.com/sirupsen/logrus"
 
 	//log "github.com/sirupsen/logrus"
 	ethTypes "github.com/prysmaticlabs/eth2-types"
@@ -31,6 +32,7 @@ type Metrics struct {
 	withCredList   []string
 	fromAddrList   []string
 	eth1Address    string
+	eth2Address    string
 	theGraph       *thegraph.Thegraph
 	postgresql     *postgresql.Postgresql
 
@@ -102,17 +104,27 @@ func NewMetrics(
 		genesisSeconds:    uint64(genesis.GenesisTime.Seconds),
 		slotsInEpoch:      uint64(slotsInEpoch),
 		eth1Address:       config.Eth1Address,
+		eth2Address:       config.Eth2Address,
 		postgresql:        pg,
 		PoolName:          config.PoolName,
 	}, nil
 }
 
 func (a *Metrics) Run() {
-	go a.StreamDuties()
-	go a.StreamRewards()
-	go a.StreamDeposits()
-	go a.StreamValidatorPerformance()
-	go a.StreamValidatorStatus()
+	//go a.StreamDuties()
+	//go a.StreamRewards()
+	//go a.StreamDeposits()
+	//go a.StreamValidatorPerformance()
+	//go a.StreamValidatorStatus()
+	bc, err := NewBeaconState(
+		a.eth2Address,
+		a.postgresql,
+		a.fromAddrList,
+	)
+	if err != nil {
+		log.Error(err)
+	}
+	go bc.Run()
 }
 
 func (a *Metrics) EpochToTime(epoch uint64) (time.Time, error) {
