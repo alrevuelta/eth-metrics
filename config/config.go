@@ -21,6 +21,7 @@ type Config struct {
 	PrometheusPort        int
 	Postgres              string
 	Eth1Address           string
+	Eth2Address           string
 }
 
 // custom implementation to allow providing the same flag multiple times
@@ -50,6 +51,7 @@ func NewCliConfig() (*Config, error) {
 	var poolName = flag.String("pool-name", "required", "Name of the pool being monitored. If known, addresses are loaded by default (see known pools)")
 	var postgres = flag.String("postgres", "", "Postgres db endpoit: postgresql://user:password@netloc:port/dbname (optional)")
 	var eth1Address = flag.String("eth1address", "", "Ethereum 1 http endpoint. To be used by rocket pool")
+	var eth2Address = flag.String("eth2address", "", "Ethereum 2 http endpoint")
 	flag.Parse()
 
 	if *version {
@@ -81,6 +83,7 @@ func NewCliConfig() (*Config, error) {
 		FromAddress:           fromAddress,
 		Postgres:              *postgres,
 		Eth1Address:           *eth1Address,
+		Eth2Address:           *eth2Address,
 	}
 	logConfig(conf)
 	return conf, nil
@@ -96,5 +99,6 @@ func logConfig(cfg *Config) {
 		"PrometheusPort":        cfg.PrometheusPort,
 		"Postgres":              cfg.Postgres,
 		"Eth1Address":           cfg.Eth1Address,
+		"Eth2Address":           cfg.Eth2Address,
 	}).Info("Cli Config:")
 }
