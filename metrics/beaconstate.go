@@ -87,21 +87,20 @@ func (p *BeaconState) Run() {
 
 		log.Info("len indexes:", len(validatorIndexes))
 
-		source, target, head := GetParticipation(
+		source, target, head, indexesMissedAtt := GetParticipation(
 			validatorIndexes,
 			currentBeaconState)
 
 		log.Info("source participation:", source)
 		log.Info("target participation:", target)
 		log.Info("head participation:", head)
+		log.Info("indexes that missed:", indexesMissedAtt)
 
 		currentBalance, effectiveBalance := GetTotalBalanceAndEffective(validatorIndexes, currentBeaconState)
 		log.Info("currentBalance:", currentBalance)
 		log.Info("effectiveBalance:", effectiveBalance)
 		rewards := big.NewInt(0).Sub(currentBalance, effectiveBalance)
 		log.Info("rewards:", rewards)
-
-		// TODO: Get validator indexes that missed source
 
 		if prevBeaconState == nil {
 			prevBeaconState = currentBeaconState
@@ -203,30 +202,36 @@ func GetValidatorsWithLessBalance(
 	return indexesWithLessBalance, earnedBalance, lostBalance
 }
 
+// See spec: from LSB to MSB: source, target, head.
+// https://github.com/ethereum/consensus-specs/blob/master/specs/altair/beacon-chain.md#participation-flag-indices
 func GetParticipation(
 	validatorIndexes []uint64,
-	beaconState *spec.VersionedBeaconState) (uint64, uint64, uint64) {
+	beaconState *spec.VersionedBeaconState) (uint64, uint64, uint64, []uint64) {
 
-	// See spec: from LSB to MSB: source, target, head.
-	// https://github.com/ethereum/consensus-specs/blob/master/specs/altair/beacon-chain.md#participation-flag-indices
+	indexesMissedAtt := make([]uint64, 0)
 
-	var nCorrectSource, nCorrectTarget, nCorrectHead uint64
+	var nIncorrectSource, nIncorrectTarget, nIncorrectHead uint64
 
 	for _, valIndx := range validatorIndexes {
-		// TODO: Dont know why but Infura returns 0 for all CurrentEpochAttestations
+		// Ignore slashed validators
+		if beaconState.Altair.Validators[valIndx].Slashed {
+			continue
+		}
 
+		// TODO: Dont know why but Infura returns 0 for all CurrentEpochAttestations
 		epochAttestations := beaconState.Altair.PreviousEpochParticipation[valIndx]
-		if isBitSet(uint8(epochAttestations), 0) {
-			nCorrectSource++
+		if !isBitSet(uint8(epochAttestations), 0) {
+			nIncorrectSource++
+			indexesMissedAtt = append(indexesMissedAtt, valIndx)
 		}
-		if isBitSet(uint8(epochAttestations), 1) {
-			nCorrectTarget++
+		if !isBitSet(uint8(epochAttestations), 1) {
+			nIncorrectTarget++
 		}
-		if isBitSet(uint8(epochAttestations), 2) {
-			nCorrectHead++
+		if !isBitSet(uint8(epochAttestations), 2) {
+			nIncorrectHead++
 		}
 	}
-	return nCorrectSource, nCorrectTarget, nCorrectHead
+	return nIncorrectSource, nIncorrectTarget, nIncorrectHead, indexesMissedAtt
 }
 
 func GetInactivityScores(

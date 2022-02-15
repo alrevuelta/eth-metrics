@@ -90,6 +90,7 @@ func Test_GetValidatorsWithLessBalance(t *testing.T) {
 	require.Equal(t, lostBalance, big.NewInt(-1100))
 }
 
+// TODO: Test that slashed validators are ignored
 func Test_GetParticipation(t *testing.T) {
 	// Use 6 validators
 	validatorIndexes := []uint64{0, 1, 2, 3, 4, 5}
@@ -117,11 +118,12 @@ func Test_GetParticipation(t *testing.T) {
 		},
 	}
 
-	source, target, head := GetParticipation(
+	source, target, head, indexesMissedAtt := GetParticipation(
 		validatorIndexes,
 		beaconState)
 
-	require.Equal(t, uint64(4), source)
-	require.Equal(t, uint64(4), target)
-	require.Equal(t, uint64(2), head)
+	require.Equal(t, uint64(2), source)
+	require.Equal(t, uint64(2), target)
+	require.Equal(t, uint64(4), head)
+	require.Equal(t, []uint64{3, 4}, indexesMissedAtt)
 }
