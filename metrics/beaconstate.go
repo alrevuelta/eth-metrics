@@ -48,11 +48,16 @@ func (p *BeaconState) Run() {
 	var prevBeaconState *spec.VersionedBeaconState = nil
 
 	for {
-		log.Info("enter")
 		// Before doing anything, check if we are in the next epoch
 		headSlot, err := p.httpClient.NodeSyncing(context.Background())
-		if err != nil || headSlot.IsSyncing {
-			log.Error("do something")
+		if err != nil {
+			log.Error("Could not get node sync status:", err)
+			continue
+		}
+
+		if headSlot.IsSyncing {
+			log.Error("Node is not in sync")
+			continue
 		}
 		// TODO: Don't hardcode 32
 		// Floor division
@@ -67,11 +72,13 @@ func (p *BeaconState) Run() {
 		currentBeaconState, err := p.GetBeaconState(currentEpoch)
 		if err != nil {
 			log.Error("Error fetching beacon state:", err)
+			continue
 		}
 
 		pubKeysDeposited, err := p.pg.GetKeysByFromAddresses(p.fromAddresses)
 		if err != nil {
 			log.Error(err)
+			continue
 		}
 
 		log.Info("len of deposited:", len(pubKeysDeposited))
@@ -95,21 +102,26 @@ func (p *BeaconState) Run() {
 		log.Info("rewards:", rewards)
 
 		// TODO: Get validator indexes that missed source
+
 		if prevBeaconState == nil {
+			prevBeaconState = currentBeaconState
+			prevEpoch = currentEpoch
 			continue
 		}
 
-		lessBalanceValidators := GetValidatorsWithLessBalance(
+		lessBalanceIndexes, earnedBalance, lostBalance := GetValidatorsWithLessBalance(
 			validatorIndexes,
 			prevBeaconState,
 			currentBeaconState)
-		log.Info("validators with less balance", lessBalanceValidators)
+		log.Info("validators with less balance", lessBalanceIndexes)
+		log.Info("earnedBalance", earnedBalance)
+		log.Info("lostBalance", lostBalance)
 
 		prevBalance, _ := GetTotalBalanceAndEffective(validatorIndexes, prevBeaconState)
 		delta := big.NewInt(0).Sub(currentBalance, prevBalance)
 
 		log.Info("prevBalance:", prevBalance)
-		log.Info("delta balance:", delta)
+		log.Info("overall delta balance:", delta)
 
 		prevBeaconState = currentBeaconState
 		prevEpoch = currentEpoch
@@ -164,14 +176,31 @@ func GetIndexesFromKeys(
 func GetValidatorsWithLessBalance(
 	validatorIndexes []uint64,
 	prevBeaconState *spec.VersionedBeaconState,
-	currentBeaconState *spec.VersionedBeaconState) []uint64 {
-
-	// TODO:
+	currentBeaconState *spec.VersionedBeaconState) ([]uint64, *big.Int, *big.Int) {
 
 	indexesWithLessBalance := make([]uint64, 0)
+	earnedBalance := big.NewInt(0)
+	lostBalance := big.NewInt(0)
 
-	return indexesWithLessBalance
+	for _, valIdx := range validatorIndexes {
+		// handle if there was a new validator index not register in the prev state
+		if valIdx >= uint64(len(prevBeaconState.Altair.Balances)) {
+			continue
+		}
 
+		prevEpochValBalance := big.NewInt(0).SetUint64(prevBeaconState.Altair.Balances[valIdx])
+		currentEpochValBalance := big.NewInt(0).SetUint64(currentBeaconState.Altair.Balances[valIdx])
+		delta := big.NewInt(0).Sub(currentEpochValBalance, prevEpochValBalance)
+
+		if delta.Cmp(big.NewInt(0)) == -1 {
+			indexesWithLessBalance = append(indexesWithLessBalance, valIdx)
+			lostBalance.Add(lostBalance, delta)
+		} else {
+			earnedBalance.Add(earnedBalance, delta)
+		}
+	}
+
+	return indexesWithLessBalance, earnedBalance, lostBalance
 }
 
 func GetParticipation(
