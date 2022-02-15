@@ -15,8 +15,6 @@ import (
 
 	//log "github.com/sirupsen/logrus"
 	ethTypes "github.com/prysmaticlabs/eth2-types"
-	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type Metrics struct {
@@ -57,29 +55,17 @@ func NewMetrics(
 		return nil, errors.Wrap(err, "error creating thegraph")
 	}
 
-	dialContext, err := grpc.DialContext(ctx, config.BeaconRpcEndpoint, grpc.WithInsecure())
-	if err != nil {
-		return nil, errors.Wrap(err, "could not create dial context")
-	}
-
-	beaconClient := ethpb.NewBeaconChainClient(dialContext)
-	validatorClient := ethpb.NewBeaconNodeValidatorClient(dialContext)
-	nodeClient := ethpb.NewNodeClient(dialContext)
-
+	/* TODO: Get from a http endpoint instead of prysm gRPC
 	genesis, err := nodeClient.GetGenesis(ctx, &emptypb.Empty{})
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting genesis info")
-	}
+	}*/
 
+	/* TODO: Get from a http endpoint instead of prysm gRPC
 	slotsInEpoch, err := GetSlotsInEpoch(ctx, beaconClient)
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting slots in epoch from config")
-	}
-
-	prysmConcurrent, err := prysmconcurrent.NewPrysmConcurrent(ctx, config.BeaconRpcEndpoint)
-	if err != nil {
-		return nil, errors.Wrap(err, "error creating prysm concurrent")
-	}
+	}*/
 
 	var pg *postgresql.Postgresql
 	if config.Postgres != "" {
@@ -94,19 +80,15 @@ func NewMetrics(
 	}
 
 	return &Metrics{
-		prysmConcurrent:   prysmConcurrent,
-		theGraph:          theGraph,
-		beaconChainClient: beaconClient,
-		validatorClient:   validatorClient,
-		nodeClient:        nodeClient,
-		withCredList:      config.WithdrawalCredentials,
-		fromAddrList:      config.FromAddress,
-		genesisSeconds:    uint64(genesis.GenesisTime.Seconds),
-		slotsInEpoch:      uint64(slotsInEpoch),
-		eth1Address:       config.Eth1Address,
-		eth2Address:       config.Eth2Address,
-		postgresql:        pg,
-		PoolName:          config.PoolName,
+		theGraph:     theGraph,
+		withCredList: config.WithdrawalCredentials,
+		fromAddrList: config.FromAddress,
+		//genesisSeconds:    uint64(genesis.GenesisTime.Seconds),
+		//slotsInEpoch:      uint64(slotsInEpoch),
+		eth1Address: config.Eth1Address,
+		eth2Address: config.Eth2Address,
+		postgresql:  pg,
+		PoolName:    config.PoolName,
 	}, nil
 }
 
