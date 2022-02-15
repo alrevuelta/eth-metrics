@@ -88,6 +88,40 @@ func Test_GetValidatorsWithLessBalance(t *testing.T) {
 	require.Equal(t, indexLessBalance, []uint64{0, 2})
 	require.Equal(t, earnedBalance, big.NewInt(501))
 	require.Equal(t, lostBalance, big.NewInt(-1100))
+}
 
-	require.Equal(t, 1, 1)
+func Test_GetParticipation(t *testing.T) {
+	// Use 6 validators
+	validatorIndexes := []uint64{0, 1, 2, 3, 4, 5}
+
+	// Mock a beaconstate with 6 validators
+	beaconState := &spec.VersionedBeaconState{
+		Altair: &altair.BeaconState{
+			// See spec: https://github.com/ethereum/consensus-specs/blob/master/specs/altair/beacon-chain.md#participation-flag-indices
+			// b7 to b0: UNUSED,UNUSED,UNUSED,UNUSED UNUSED,HEAD,TARGET,SOURCE
+			// i.e. 0000 0111 means head, target and source OK
+			//.     0000 0001 means only source OK
+			PreviousEpochParticipation: []altair.ParticipationFlags{
+				0b00000111,
+				0b00000011,
+				0b00000011,
+				0b00000100,
+				0b00000000,
+				0b00000011,
+				0b00000011, // skipped (see validatorIndexes)
+				0b00000011, // skipped (see validatorIndexes)
+				0b00000011, // skipped (see validatorIndexes)
+			},
+			// TODO: Different eth2 endpoints return wrong data for this. Bug?
+			CurrentEpochParticipation: []altair.ParticipationFlags{},
+		},
+	}
+
+	source, target, head := GetParticipation(
+		validatorIndexes,
+		beaconState)
+
+	require.Equal(t, uint64(4), source)
+	require.Equal(t, uint64(4), target)
+	require.Equal(t, uint64(2), head)
 }
