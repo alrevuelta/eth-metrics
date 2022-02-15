@@ -71,6 +71,7 @@ func (p *BeaconState) Run() {
 			continue
 		}
 
+		// TODO: Retry once if fails
 		currentBeaconState, err := p.GetBeaconState(currentEpoch)
 		if err != nil {
 			log.Error("Error fetching beacon state:", err)
