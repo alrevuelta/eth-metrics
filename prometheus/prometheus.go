@@ -2,10 +2,11 @@ package prometheus
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"net/http"
 )
 
 func Run(port int) {
@@ -184,6 +185,22 @@ var (
 			Namespace: "validators",
 			Name:      "cumulative_rewards",
 			Help:      "Cumulative rewards for all validators",
+		},
+	)
+
+	TotalBalance = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "total_balance_gwei",
+			Help:      "Total balance for all validators",
+		},
+	)
+
+	EffectiveBalance = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "effective_balance_gwei",
+			Help:      "Total effective balance for all validators",
 		},
 	)
 
