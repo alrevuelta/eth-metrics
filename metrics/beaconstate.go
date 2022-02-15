@@ -215,10 +215,7 @@ func GetParticipation(
 	for _, valIndx := range validatorIndexes {
 		// TODO: Dont know why but Infura returns 0 for all CurrentEpochAttestations
 
-		// TODO: Not working, wait for: https://github.com/attestantio/go-eth2-client/pull/14
-		//epochAttestations := beaconState.Altair.PreviousEpochAttestations[valIndx]
-		epochAttestations := 7 // Remove
-		_ = valIndx            // Remove
+		epochAttestations := beaconState.Altair.PreviousEpochParticipation[valIndx]
 		if isBitSet(uint8(epochAttestations), 0) {
 			nCorrectSource++
 		}

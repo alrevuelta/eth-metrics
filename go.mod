@@ -3,7 +3,7 @@ module github.com/alrevuelta/eth-pools-metrics
 go 1.17
 
 require (
-	github.com/attestantio/go-eth2-client v0.10.0
+	github.com/attestantio/go-eth2-client v0.10.1-0.20220211153658-6d21c696e55e
 	github.com/ethereum/go-ethereum v1.10.14
 	github.com/jackc/pgx/v4 v4.14.1
 	github.com/pkg/errors v0.9.1
@@ -11,6 +11,7 @@ require (
 	github.com/prysmaticlabs/eth2-types v0.0.0-20210303084904-c9735a06829d
 	github.com/prysmaticlabs/prysm/v2 v2.0.1
 	github.com/rocket-pool/rocketpool-go v1.10.0
+	github.com/rs/zerolog v1.26.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
 	github.com/superoo7/go-gecko v1.0.0
@@ -56,7 +57,6 @@ require (
 	github.com/prysmaticlabs/go-bitfield v0.0.0-20210809151128-385d8c5e3fb7 // indirect
 	github.com/r3labs/sse/v2 v2.7.4 // indirect
 	github.com/rjeczalik/notify v0.9.1 // indirect
-	github.com/rs/zerolog v1.26.1 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
 	github.com/thomaso-mirodin/intmath v0.0.0-20160323211736-5dc6d854e46e // indirect
 	github.com/tklauser/go-sysconf v0.3.5 // indirect
