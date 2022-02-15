@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/attestantio/go-eth2-client/spec"
@@ -54,4 +55,39 @@ func Test_GetIndexesFromKeys(t *testing.T) {
 			beaconState)
 		require.Equal(t, indexes, expectedIndexes[test])
 	}
+}
+
+func Test_GetValidatorsWithLessBalance(t *testing.T) {
+	prevBeaconState := &spec.VersionedBeaconState{
+		Altair: &altair.BeaconState{
+			Balances: []uint64{
+				1000,
+				9000,
+				2000,
+				1,
+			},
+		},
+	}
+
+	currentBeaconState := &spec.VersionedBeaconState{
+		Altair: &altair.BeaconState{
+			Balances: []uint64{
+				900,
+				9500,
+				1000,
+				2,
+			},
+		},
+	}
+
+	indexLessBalance, earnedBalance, lostBalance := GetValidatorsWithLessBalance(
+		[]uint64{0, 1, 2, 3},
+		prevBeaconState,
+		currentBeaconState)
+
+	require.Equal(t, indexLessBalance, []uint64{0, 2})
+	require.Equal(t, earnedBalance, big.NewInt(501))
+	require.Equal(t, lostBalance, big.NewInt(-1100))
+
+	require.Equal(t, 1, 1)
 }
