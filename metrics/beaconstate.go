@@ -8,6 +8,7 @@ import (
 	"time"
 
 	//"github.com/alrevuelta/eth-pools-metrics/prometheus"
+	"github.com/alrevuelta/eth-pools-metrics/pools"
 	"github.com/alrevuelta/eth-pools-metrics/postgresql"
 	"github.com/alrevuelta/eth-pools-metrics/prometheus"
 	"github.com/alrevuelta/eth-pools-metrics/schemas"
@@ -78,50 +79,38 @@ func (p *BeaconState) Run() {
 			continue
 		}
 
-		log.Info("Getting keys")
-
-		pubKeysDeposited, err := p.pg.GetKeysByFromAddresses(p.fromAddresses)
-		if err != nil {
-			log.Error(err)
-			continue
-		}
-
-		valKeyToIndex := PopulateKeysToIndexesMap(currentBeaconState)
-
-		log.Info("Getting done")
-
-		log.Info("Getting indexes")
-
-		validatorIndexes := GetIndexesFromKeys(pubKeysDeposited, valKeyToIndex)
-		log.Info("Done getting indexes")
-
-		log.Info("populate fields")
-
-		metrics := PopulateParticipationAndBalance(validatorIndexes, currentBeaconState)
-
-		log.Info("done populating fields")
-
+		// if no prev beacon state is known, fetch it
 		if prevBeaconState == nil {
-			prevBeaconState = currentBeaconState
-			prevEpoch = currentEpoch
-			logMetrics(metrics)
-			setPrometheusMetrics(metrics)
-			continue
+			prevBeaconState, err = p.GetBeaconState(currentEpoch - 1)
+			// TODO: Retry
+			if err != nil {
+				log.Error(err)
+				continue
+			}
 		}
 
-		lessBalanceIndexes, earnedBalance, lostBalance := GetValidatorsWithLessBalance(
-			validatorIndexes,
-			prevBeaconState,
-			currentBeaconState)
+		poolNames := []string{"lido", "kraken", "binance", "stkr", "cream"}
 
-		//prevBalance, _ := GetTotalBalanceAndEffective(validatorIndexes, prevBeaconState)
+		for _, poolName := range poolNames {
+			poolAddressList := pools.PoolsAddresses[poolName]
+			log.Info("The pool:", poolName, " keys are: ", poolAddressList)
+			pubKeysDeposited, err := p.pg.GetKeysByFromAddresses(poolAddressList)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
 
-		metrics.IndexesLessBalance = lessBalanceIndexes
-		metrics.EarnedBalance = earnedBalance
-		metrics.LosedBalance = lostBalance
+			valKeyToIndex := PopulateKeysToIndexesMap(currentBeaconState)
+			validatorIndexes := GetIndexesFromKeys(pubKeysDeposited, valKeyToIndex)
 
-		logMetrics(metrics)
-		setPrometheusMetrics(metrics)
+			metrics := PopulateParticipationAndBalance(
+				validatorIndexes,
+				currentBeaconState,
+				prevBeaconState)
+
+			logMetrics(metrics, poolName)
+			setPrometheusMetrics(metrics, poolName)
+		}
 
 		prevBeaconState = currentBeaconState
 		prevEpoch = currentEpoch
@@ -137,9 +126,11 @@ func PopulateKeysToIndexesMap(beaconState *spec.VersionedBeaconState) map[string
 	return valKeyToIndex
 }
 
+// TODO: Skip validators that are not active yet
 func PopulateParticipationAndBalance(
 	validatorIndexes []uint64,
-	beaconState *spec.VersionedBeaconState) schemas.ValidatorPerformanceMetrics {
+	beaconState *spec.VersionedBeaconState,
+	prevBeaconState *spec.VersionedBeaconState) schemas.ValidatorPerformanceMetrics {
 
 	metrics := schemas.ValidatorPerformanceMetrics{
 		EarnedBalance:    big.NewInt(0),
@@ -155,6 +146,15 @@ func PopulateParticipationAndBalance(
 
 	currentBalance, effectiveBalance := GetTotalBalanceAndEffective(validatorIndexes, beaconState)
 	rewards := big.NewInt(0).Sub(currentBalance, effectiveBalance)
+
+	lessBalanceIndexes, earnedBalance, lostBalance := GetValidatorsWithLessBalance(
+		validatorIndexes,
+		prevBeaconState,
+		beaconState)
+
+	metrics.IndexesLessBalance = lessBalanceIndexes
+	metrics.EarnedBalance = earnedBalance
+	metrics.LosedBalance = lostBalance
 
 	// TODO: Don't hardcode 32
 	metrics.Epoch = beaconState.Altair.Slot / 32
@@ -263,6 +263,13 @@ func GetParticipation(
 		if beaconState.Altair.Validators[valIndx].Slashed {
 			continue
 		}
+		beaconStateEpoch := beaconState.Altair.Slot / 32
+		// Ignore not yet active validators
+		// TODO: Test this
+		if uint64(beaconState.Altair.Validators[valIndx].ActivationEpoch) > beaconStateEpoch {
+			//log.Warn("index: ", valIndx, " is not active yet")
+			continue
+		}
 
 		// TODO: Dont know why but Infura returns 0 for all CurrentEpochAttestations
 		epochAttestations := beaconState.Altair.PreviousEpochParticipation[valIndx]
@@ -295,58 +302,47 @@ func isBitSet(input uint8, n int) bool {
 	return (input & (1 << n)) > uint8(0)
 }
 
-func logMetrics(metrics schemas.ValidatorPerformanceMetrics) {
+func logMetrics(
+	metrics schemas.ValidatorPerformanceMetrics,
+	poolName string) {
 	balanceDecreasedPercent := (float64(len(metrics.IndexesLessBalance)) / float64(metrics.NOfValidatingKeys)) * 100
 
-	logEpochSlot := log.WithFields(log.Fields{
-		"Epoch": metrics.Epoch,
-	})
-
-	logEpochSlot.WithFields(log.Fields{
-		"nOfTotalVotes":      metrics.NOfTotalVotes,
-		"nOfIncorrectSource": metrics.NOfIncorrectSource,
-		"nOfIncorrectTarget": metrics.NOfIncorrectTarget,
-		"nOfIncorrectHead":   metrics.NOfIncorrectHead,
-		"nOfValidators":      metrics.NOfValidatingKeys,
-	}).Info("Incorrect voting:")
-
-	logEpochSlot.WithFields(log.Fields{
-		"PercentIncorrectSource": (float64(metrics.NOfIncorrectSource) / float64(metrics.NOfTotalVotes)) * 100,
-		"PercentIncorrectTarget": (float64(metrics.NOfIncorrectTarget) / float64(metrics.NOfTotalVotes)) * 100,
-		"PercentIncorrectHead":   (float64(metrics.NOfIncorrectHead) / float64(metrics.NOfTotalVotes)) * 100,
-	}).Info("Incorrect voting percents:")
-
-	logEpochSlot.WithFields(log.Fields{
+	log.WithFields(log.Fields{
+		"PoolName":                    poolName,
+		"Epoch":                       metrics.Epoch,
+		"nOfTotalVotes":               metrics.NOfTotalVotes,
+		"nOfIncorrectSource":          metrics.NOfIncorrectSource,
+		"nOfIncorrectTarget":          metrics.NOfIncorrectTarget,
+		"nOfIncorrectHead":            metrics.NOfIncorrectHead,
 		"nOfValidators":               metrics.NOfValidatingKeys,
+		"PercentIncorrectSource":      (float64(metrics.NOfIncorrectSource) / float64(metrics.NOfTotalVotes)) * 100,
+		"PercentIncorrectTarget":      (float64(metrics.NOfIncorrectTarget) / float64(metrics.NOfTotalVotes)) * 100,
+		"PercentIncorrectHead":        (float64(metrics.NOfIncorrectHead) / float64(metrics.NOfTotalVotes)) * 100,
 		"nOfValsWithDecreasedBalance": len(metrics.IndexesLessBalance),
 		"balanceDecreasedPercent":     balanceDecreasedPercent,
 		"epochEarnedBalance":          metrics.EarnedBalance,
 		"epochLostBalance":            metrics.LosedBalance,
-	}).Info("Balance decreased:")
-
-	logEpochSlot.WithFields(log.Fields{
-		"totalBalance":     metrics.TotalBalance,
-		"effectiveBalance": metrics.EffectiveBalance,
-		"totalRewards":     metrics.TotalRewards,
-	}).Info("Balance and rewards:")
-
-	logEpochSlot.WithFields(log.Fields{
-		"ValidadorKey": metrics.IndexesMissedAtt,
-	}).Info("Validators that missed attestation")
-
-	logEpochSlot.WithFields(log.Fields{
-		"ValidadorKey": metrics.IndexesLessBalance,
-	}).Info("Validators with less inter-epoch balance")
+		"totalBalance":                metrics.TotalBalance,
+		"effectiveBalance":            metrics.EffectiveBalance,
+		"totalRewards":                metrics.TotalRewards,
+		"ValidadorKeyMissedAtt":       metrics.IndexesMissedAtt,
+		"ValidadorKeyLessBalance":     metrics.IndexesLessBalance,
+	}).Info(poolName + " Stats:")
 }
 
-func setPrometheusMetrics(metrics schemas.ValidatorPerformanceMetrics) {
+func setPrometheusMetrics(
+	metrics schemas.ValidatorPerformanceMetrics,
+	poolName string) {
+
+	prometheus.TotalBalanceExperiment.WithLabelValues(
+		poolName).Set(float64(metrics.TotalBalance.Int64()))
+
 	prometheus.NOfTotalVotes.Set(float64(metrics.NOfTotalVotes))
 	prometheus.NOfIncorrectSource.Set(float64(metrics.NOfIncorrectSource))
 	prometheus.NOfIncorrectTarget.Set(float64(metrics.NOfIncorrectTarget))
 	prometheus.NOfIncorrectHead.Set(float64(metrics.NOfIncorrectHead))
 	prometheus.EarnedAmountInEpoch.Set(float64(metrics.EarnedBalance.Int64()))
 	prometheus.LosedAmountInEpoch.Set(float64(metrics.LosedBalance.Int64()))
-
 	prometheus.CumulativeRewards.Set(float64(metrics.TotalRewards.Int64()))
 	prometheus.TotalBalance.Set(float64(metrics.TotalBalance.Int64()))
 	prometheus.EffectiveBalance.Set(float64(metrics.EffectiveBalance.Int64()))
@@ -355,11 +351,12 @@ func setPrometheusMetrics(metrics schemas.ValidatorPerformanceMetrics) {
 	balanceDecreasedPercent := (float64(metrics.NOfValsWithLessBalance) / float64(metrics.NOfValidatingKeys)) * 100
 	prometheus.BalanceDecreasedPercent.Set(balanceDecreasedPercent)
 
+	/* TODO:
 	for _, v := range metrics.MissedAttestationsKeys {
 		prometheus.MissedAttestationsKeys.WithLabelValues(v).Inc()
 	}
 
 	for _, v := range metrics.LostBalanceKeys {
 		prometheus.LessBalanceKeys.WithLabelValues(v).Inc()
-	}
+	}*/
 }
