@@ -274,5 +274,18 @@ var (
 		},
 	)
 
+	// Code above here will be deprecated
+
+	TotalBalanceExperiment = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "experiment",
+			Help:      "",
+		},
+		[]string{
+			"pool",
+		},
+	)
+
 	// TODO: Add remaining time for next slot, to monitor perfomance issues
 )
