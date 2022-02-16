@@ -1,8 +1,8 @@
 package metrics
 
 import (
-	"bytes"
 	"context"
+	"encoding/hex"
 	"math/big"
 	"strconv"
 	"time"
@@ -78,14 +78,28 @@ func (p *BeaconState) Run() {
 			continue
 		}
 
+		log.Info("Getting keys")
+
 		pubKeysDeposited, err := p.pg.GetKeysByFromAddresses(p.fromAddresses)
 		if err != nil {
 			log.Error(err)
 			continue
 		}
 
-		validatorIndexes := GetIndexesFromKeys(pubKeysDeposited, currentBeaconState)
+		valKeyToIndex := PopulateKeysToIndexesMap(currentBeaconState)
+
+		log.Info("Getting done")
+
+		log.Info("Getting indexes")
+
+		validatorIndexes := GetIndexesFromKeys(pubKeysDeposited, valKeyToIndex)
+		log.Info("Done getting indexes")
+
+		log.Info("populate fields")
+
 		metrics := PopulateParticipationAndBalance(validatorIndexes, currentBeaconState)
+
+		log.Info("done populating fields")
 
 		if prevBeaconState == nil {
 			prevBeaconState = currentBeaconState
@@ -112,6 +126,15 @@ func (p *BeaconState) Run() {
 		prevBeaconState = currentBeaconState
 		prevEpoch = currentEpoch
 	}
+}
+
+func PopulateKeysToIndexesMap(beaconState *spec.VersionedBeaconState) map[string]uint64 {
+	// TODO: Naive approach. Reset the map every time
+	valKeyToIndex := make(map[string]uint64, 0)
+	for index, beaconStateKey := range beaconState.Altair.Validators {
+		valKeyToIndex[hex.EncodeToString(beaconStateKey.PublicKey[:])] = uint64(index)
+	}
+	return valKeyToIndex
 }
 
 func PopulateParticipationAndBalance(
@@ -183,18 +206,13 @@ func GetTotalBalanceAndEffective(
 
 func GetIndexesFromKeys(
 	validatorKeys [][]byte,
-	beaconState *spec.VersionedBeaconState) []uint64 {
+	valKeyToIndex map[string]uint64) []uint64 {
 
 	indexes := make([]uint64, 0)
 
-	// TODO: Naive searching approach
-	for index, beaconStateKey := range beaconState.Altair.Validators {
-		for _, key := range validatorKeys {
-			if bytes.Compare(beaconStateKey.PublicKey[:], key) == 0 {
-				indexes = append(indexes, uint64(index))
-				break
-			}
-		}
+	// Use global prepopulated map
+	for _, key := range validatorKeys {
+		indexes = append(indexes, valKeyToIndex[hex.EncodeToString(key)])
 	}
 
 	return indexes
