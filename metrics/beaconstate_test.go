@@ -53,7 +53,8 @@ func Test_GetIndexesFromKeys(t *testing.T) {
 		indexes := GetIndexesFromKeys(
 			inputKeys[test],
 			beaconState)
-		require.Equal(t, indexes, expectedIndexes[test])
+		// Ignore order
+		require.ElementsMatch(t, indexes, expectedIndexes[test])
 	}
 }
 
