@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"encoding/hex"
 	"math/big"
 	"testing"
 
@@ -8,7 +9,6 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
-	//log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 )
 
@@ -49,10 +49,12 @@ func Test_GetIndexesFromKeys(t *testing.T) {
 		{3, 0, 1}, // test 3
 	}
 
+	keyToIndexMapping := PopulateKeysToIndexesMap(beaconState)
+
 	for test := 0; test < len(inputKeys); test++ {
 		indexes := GetIndexesFromKeys(
 			inputKeys[test],
-			beaconState)
+			keyToIndexMapping)
 		// Ignore order
 		require.ElementsMatch(t, indexes, expectedIndexes[test])
 	}
@@ -116,6 +118,17 @@ func Test_GetParticipation(t *testing.T) {
 			},
 			// TODO: Different eth2 endpoints return wrong data for this. Bug?
 			CurrentEpochParticipation: []altair.ParticipationFlags{},
+			Validators: []*phase0.Validator{
+				{Slashed: false},
+				{Slashed: false},
+				{Slashed: false},
+				{Slashed: false},
+				{Slashed: false},
+				{Slashed: false},
+				{Slashed: false},
+				{Slashed: false},
+				{Slashed: false},
+			},
 		},
 	}
 
@@ -127,4 +140,30 @@ func Test_GetParticipation(t *testing.T) {
 	require.Equal(t, uint64(2), target)
 	require.Equal(t, uint64(4), head)
 	require.Equal(t, []uint64{3, 4}, indexesMissedAtt)
+}
+
+func Test_PopulateKeysToIndexesMap(t *testing.T) {
+	beaconState := &spec.VersionedBeaconState{
+		Altair: &altair.BeaconState{
+			Validators: []*phase0.Validator{
+				{
+					PublicKey: validator_0,
+				},
+				{
+					PublicKey: validator_1,
+				},
+				{
+					PublicKey: validator_2,
+				},
+				{
+					PublicKey: validator_3,
+				},
+			},
+		},
+	}
+	valKeyToIndex := PopulateKeysToIndexesMap(beaconState)
+	require.Equal(t, uint64(0), valKeyToIndex[hex.EncodeToString(validator_0[:])])
+	require.Equal(t, uint64(1), valKeyToIndex[hex.EncodeToString(validator_1[:])])
+	require.Equal(t, uint64(2), valKeyToIndex[hex.EncodeToString(validator_2[:])])
+	require.Equal(t, uint64(3), valKeyToIndex[hex.EncodeToString(validator_3[:])])
 }
