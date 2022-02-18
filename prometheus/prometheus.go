@@ -331,5 +331,27 @@ var (
 		},
 	)
 
+	EpochEarnedAmountMetrics = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "epoch_earned_amount_metrics",
+			Help:      "",
+		},
+		[]string{
+			"pool",
+		},
+	)
+
+	EpochLostAmountMetrics = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "epoch_lost_amount_metrics",
+			Help:      "",
+		},
+		[]string{
+			"pool",
+		},
+	)
+
 	// TODO: Add remaining time for next slot, to monitor perfomance issues
 )
