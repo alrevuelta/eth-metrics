@@ -48,6 +48,7 @@ var PoolsAddresses = map[string][]string{
 		"0xfbec500765ea318658de235bf8219eeb1c8fa540",
 		"0xfe56a0dbdad44dd14e4d560632cc842c8a13642b",
 		"0xfff8a72c72e0d5e08e85be05868990e8e4eef2da",
+		"0xf82ac5937a20dc862f9bc0668779031e06000f17",
 	},
 	"huobi": {
 		"0x194bd70b59491ce1310ea0bceabdb6c23ac9d5b2",
@@ -89,6 +90,7 @@ var PoolsAddresses = map[string][]string{
 	"stakewise": {
 		"0x102f792028a56f13d6d99ed4ec8a6125de98582a",
 		"0x5fc60576b92c5ce5c341c43e3b2866eb9e0cddd1",
+		"0xAD4Eb63b9a2F1A4D241c92e2bBa78eEFc56ab990",
 	},
 	"piedao": {
 		"0x66827bcd635f2bb1779d68c46aeb16541bca6ba8",
@@ -109,5 +111,44 @@ var PoolsAddresses = map[string][]string{
 	"cream": {
 		"0xb2c43455ee556dea95c0599b0d3f7d0abbf32fdb",
 		"0x197939c1ca20c2b506d6811d8b6cdb3394471074",
+	},
+	"defi1": {
+		"0x234ee9e35f8e9749a002fc42970d570db716453b",
+	},
+	"defi2": {
+		"0x711cd20bf6b436ced327a8c65a14491aa04c2ca1",
+	},
+	"defi3": {
+		"0xfb626333099a91ab677bcd5e9c71bc4dbe0238a8",
+	},
+	"whale1": {
+		"0x3b436fb33b79a3a754b0242a48a3b3aec1e35ad2",
+	},
+	"whale2": {
+		"0xa8582b5a0f615bc21d7780618557042be60b32ed",
+	},
+	"whale3": {
+		"0xa3ae668b6239fa3eb1dc26daabb03f244d0259f0",
+	},
+	"whale4": {
+		"0x152c77c1131eb171b5547f2c4c33ff2c496984f1",
+	},
+	"whale5": {
+		"0x38bc2db2732a7efa43c89160118268ef0d15163d",
+	},
+	"whale6": {
+		"0x0ec24e397a3592da41264209cc0582bc3bbc9776",
+	},
+	"whale7": {
+		"0x46d24de64abe6a7ab6afda0389074ae8c7ed5d0f",
+	},
+	"whale8": {
+		"0x6aa35f8ae7c9aceb2a541b6576577fdcdae73100",
+	},
+	"whale9": {
+		"0x27d71a464da941118a4e056d0737274aa308a923",
+	},
+	"whale10": {
+		"0x51226113a35a29cda0030ef221e90baef221278b",
 	},
 }
