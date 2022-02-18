@@ -223,6 +223,12 @@ func GetValidatorsWithLessBalance(
 	prevBeaconState *spec.VersionedBeaconState,
 	currentBeaconState *spec.VersionedBeaconState) ([]uint64, *big.Int, *big.Int) {
 
+	if (prevBeaconState.Altair.Slot/32 + 1) != currentBeaconState.Altair.Slot/32 {
+		// TODO: Handle better this
+		log.Error("Beacon state are not consecutive:", prevBeaconState.Altair.Slot, " vs ", currentBeaconState.Altair.Slot)
+		return nil, nil, nil
+	}
+
 	indexesWithLessBalance := make([]uint64, 0)
 	earnedBalance := big.NewInt(0)
 	lostBalance := big.NewInt(0)
@@ -348,6 +354,12 @@ func setPrometheusMetrics(
 
 	prometheus.IncorrectHeadMetrics.WithLabelValues(
 		poolName).Set(float64(metrics.NOfIncorrectHead))
+
+	prometheus.EpochEarnedAmountMetrics.WithLabelValues(
+		poolName).Set(float64(metrics.EarnedBalance.Int64()))
+
+	prometheus.EpochLostAmountMetrics.WithLabelValues(
+		poolName).Set(float64(metrics.LosedBalance.Int64()))
 
 	prometheus.NOfTotalVotes.Set(float64(metrics.NOfTotalVotes))
 	prometheus.NOfIncorrectSource.Set(float64(metrics.NOfIncorrectSource))
