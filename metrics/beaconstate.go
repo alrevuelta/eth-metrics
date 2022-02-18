@@ -71,6 +71,7 @@ func (p *BeaconState) Run() {
 
 		if prevEpoch >= currentEpoch {
 			// do nothing
+			time.Sleep(5 * time.Second)
 			continue
 		}
 
