@@ -39,22 +39,24 @@ type Metrics struct {
 	Epoch uint64
 	Slot  uint64
 
-	PoolName string
+	PoolNames []string
 }
 
 func NewMetrics(
 	ctx context.Context,
 	config *config.Config) (*Metrics, error) {
 
-	theGraph, err := thegraph.NewThegraph(
-		config.Network,
-		config.WithdrawalCredentials,
-		config.FromAddress)
+	/*
+		theGraph, err := thegraph.NewThegraph(
+			//config.Network,
+			"ignore",
+			config.WithdrawalCredentials,
+			config.FromAddress)
 
-	if err != nil {
-		return nil, errors.Wrap(err, "error creating thegraph")
-	}
-
+		if err != nil {
+			return nil, errors.Wrap(err, "error creating thegraph")
+		}
+	*/
 	/* TODO: Get from a http endpoint instead of prysm gRPC
 	genesis, err := nodeClient.GetGenesis(ctx, &emptypb.Empty{})
 	if err != nil {
@@ -68,19 +70,20 @@ func NewMetrics(
 	}*/
 
 	var pg *postgresql.Postgresql
+	var err error
 	if config.Postgres != "" {
 		pg, err = postgresql.New(config.Postgres)
 		if err != nil {
 			return nil, errors.Wrap(err, "could not create postgresql")
 		}
-		err := pg.CreateTable()
+		err = pg.CreateTable()
 		if err != nil {
 			return nil, errors.Wrap(err, "error creating pool table to store data")
 		}
 	}
 
 	return &Metrics{
-		theGraph:     theGraph,
+		//theGraph:     theGraph,
 		withCredList: config.WithdrawalCredentials,
 		fromAddrList: config.FromAddress,
 		//genesisSeconds:    uint64(genesis.GenesisTime.Seconds),
@@ -88,7 +91,7 @@ func NewMetrics(
 		eth1Address: config.Eth1Address,
 		eth2Address: config.Eth2Address,
 		postgresql:  pg,
-		PoolName:    config.PoolName,
+		PoolNames:   config.PoolNames,
 	}, nil
 }
 
@@ -102,6 +105,7 @@ func (a *Metrics) Run() {
 		a.eth2Address,
 		a.postgresql,
 		a.fromAddrList,
+		a.PoolNames,
 	)
 	if err != nil {
 		log.Error(err)

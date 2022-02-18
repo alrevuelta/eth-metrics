@@ -24,9 +24,10 @@ type BeaconState struct {
 	eth2Endpoint  string
 	pg            *postgresql.Postgresql
 	fromAddresses []string
+	poolNames     []string
 }
 
-func NewBeaconState(eth2Endpoint string, pg *postgresql.Postgresql, fromAddresses []string) (*BeaconState, error) {
+func NewBeaconState(eth2Endpoint string, pg *postgresql.Postgresql, fromAddresses []string, poolNames []string) (*BeaconState, error) {
 	client, err := http.New(context.Background(),
 		http.WithTimeout(60*time.Second),
 		http.WithAddress(eth2Endpoint),
@@ -43,6 +44,7 @@ func NewBeaconState(eth2Endpoint string, pg *postgresql.Postgresql, fromAddresse
 		eth2Endpoint:  eth2Endpoint,
 		pg:            pg,
 		fromAddresses: fromAddresses,
+		poolNames:     poolNames,
 	}, nil
 }
 
@@ -89,9 +91,7 @@ func (p *BeaconState) Run() {
 			}
 		}
 
-		poolNames := []string{"lido", "kraken", "binance", "stkr", "cream"}
-
-		for _, poolName := range poolNames {
+		for _, poolName := range p.poolNames {
 			poolAddressList := pools.PoolsAddresses[poolName]
 			log.Info("The pool:", poolName, " keys are: ", poolAddressList)
 			pubKeysDeposited, err := p.pg.GetKeysByFromAddresses(poolAddressList)
