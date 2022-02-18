@@ -276,10 +276,54 @@ var (
 
 	// Code above here will be deprecated
 
-	TotalBalanceExperiment = promauto.NewGaugeVec(
+	TotalBalanceMetrics = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: "validators",
-			Name:      "experiment",
+			Name:      "total_balance_metrics",
+			Help:      "",
+		},
+		[]string{
+			"pool",
+		},
+	)
+
+	ActiveValidatorsMetrics = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "active_validators_metrics",
+			Help:      "",
+		},
+		[]string{
+			"pool",
+		},
+	)
+
+	IncorrectSourceMetrics = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "incorrect_source_metrics",
+			Help:      "",
+		},
+		[]string{
+			"pool",
+		},
+	)
+
+	IncorrectTargetMetrics = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "incorrect_target_metrics",
+			Help:      "",
+		},
+		[]string{
+			"pool",
+		},
+	)
+
+	IncorrectHeadMetrics = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "incorrect_head_metrics",
 			Help:      "",
 		},
 		[]string{

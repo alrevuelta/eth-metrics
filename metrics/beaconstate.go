@@ -334,8 +334,20 @@ func setPrometheusMetrics(
 	metrics schemas.ValidatorPerformanceMetrics,
 	poolName string) {
 
-	prometheus.TotalBalanceExperiment.WithLabelValues(
+	prometheus.TotalBalanceMetrics.WithLabelValues(
 		poolName).Set(float64(metrics.TotalBalance.Int64()))
+
+	prometheus.ActiveValidatorsMetrics.WithLabelValues(
+		poolName).Set(float64(metrics.NOfValidatingKeys))
+
+	prometheus.IncorrectSourceMetrics.WithLabelValues(
+		poolName).Set(float64(metrics.NOfIncorrectSource))
+
+	prometheus.IncorrectTargetMetrics.WithLabelValues(
+		poolName).Set(float64(metrics.NOfIncorrectTarget))
+
+	prometheus.IncorrectHeadMetrics.WithLabelValues(
+		poolName).Set(float64(metrics.NOfIncorrectHead))
 
 	prometheus.NOfTotalVotes.Set(float64(metrics.NOfTotalVotes))
 	prometheus.NOfIncorrectSource.Set(float64(metrics.NOfIncorrectSource))
