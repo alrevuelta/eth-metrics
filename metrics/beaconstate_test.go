@@ -63,6 +63,7 @@ func Test_GetIndexesFromKeys(t *testing.T) {
 func Test_GetValidatorsWithLessBalance(t *testing.T) {
 	prevBeaconState := &spec.VersionedBeaconState{
 		Altair: &altair.BeaconState{
+			Slot: 34 * 32,
 			Balances: []uint64{
 				1000,
 				9000,
@@ -74,6 +75,7 @@ func Test_GetValidatorsWithLessBalance(t *testing.T) {
 
 	currentBeaconState := &spec.VersionedBeaconState{
 		Altair: &altair.BeaconState{
+			Slot: 35 * 32,
 			Balances: []uint64{
 				900,
 				9500,
@@ -83,14 +85,36 @@ func Test_GetValidatorsWithLessBalance(t *testing.T) {
 		},
 	}
 
-	indexLessBalance, earnedBalance, lostBalance := GetValidatorsWithLessBalance(
+	indexLessBalance, earnedBalance, lostBalance, err := GetValidatorsWithLessBalance(
 		[]uint64{0, 1, 2, 3},
 		prevBeaconState,
 		currentBeaconState)
 
+	require.NoError(t, err)
 	require.Equal(t, indexLessBalance, []uint64{0, 2})
 	require.Equal(t, earnedBalance, big.NewInt(501))
 	require.Equal(t, lostBalance, big.NewInt(-1100))
+
+}
+
+func Test_GetValidatorsWithLessBalance_NonConsecutive(t *testing.T) {
+	currentBeaconState := &spec.VersionedBeaconState{
+		Altair: &altair.BeaconState{
+			Slot: 54 * 32,
+		},
+	}
+	prevBeaconState := &spec.VersionedBeaconState{
+		Altair: &altair.BeaconState{
+			Slot: 52 * 32,
+		},
+	}
+
+	_, _, _, err := GetValidatorsWithLessBalance(
+		[]uint64{},
+		prevBeaconState,
+		currentBeaconState)
+
+	require.Error(t, err)
 }
 
 // TODO: Test that slashed validators are ignored
