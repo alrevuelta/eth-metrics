@@ -3,9 +3,12 @@ package metrics
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"math/big"
 	"strconv"
 	"time"
+
+	"github.com/pkg/errors"
 
 	//"github.com/alrevuelta/eth-pools-metrics/prometheus"
 	"github.com/alrevuelta/eth-pools-metrics/pools"
@@ -104,10 +107,15 @@ func (p *BeaconState) Run() {
 			valKeyToIndex := PopulateKeysToIndexesMap(currentBeaconState)
 			validatorIndexes := GetIndexesFromKeys(pubKeysDeposited, valKeyToIndex)
 
-			metrics := PopulateParticipationAndBalance(
+			metrics, err := PopulateParticipationAndBalance(
 				validatorIndexes,
 				currentBeaconState,
 				prevBeaconState)
+
+			if err != nil {
+				log.Error(err)
+				continue
+			}
 
 			logMetrics(metrics, poolName)
 			setPrometheusMetrics(metrics, poolName)
@@ -131,7 +139,7 @@ func PopulateKeysToIndexesMap(beaconState *spec.VersionedBeaconState) map[string
 func PopulateParticipationAndBalance(
 	validatorIndexes []uint64,
 	beaconState *spec.VersionedBeaconState,
-	prevBeaconState *spec.VersionedBeaconState) schemas.ValidatorPerformanceMetrics {
+	prevBeaconState *spec.VersionedBeaconState) (schemas.ValidatorPerformanceMetrics, error) {
 
 	metrics := schemas.ValidatorPerformanceMetrics{
 		EarnedBalance:    big.NewInt(0),
@@ -148,10 +156,14 @@ func PopulateParticipationAndBalance(
 	currentBalance, effectiveBalance := GetTotalBalanceAndEffective(validatorIndexes, beaconState)
 	rewards := big.NewInt(0).Sub(currentBalance, effectiveBalance)
 
-	lessBalanceIndexes, earnedBalance, lostBalance := GetValidatorsWithLessBalance(
+	lessBalanceIndexes, earnedBalance, lostBalance, err := GetValidatorsWithLessBalance(
 		validatorIndexes,
 		prevBeaconState,
 		beaconState)
+
+	if err != nil {
+		return schemas.ValidatorPerformanceMetrics{}, err
+	}
 
 	metrics.IndexesLessBalance = lessBalanceIndexes
 	metrics.EarnedBalance = earnedBalance
@@ -174,7 +186,7 @@ func PopulateParticipationAndBalance(
 	metrics.EffectiveBalance = effectiveBalance
 	metrics.TotalRewards = rewards
 
-	return metrics
+	return metrics, nil
 }
 
 // TODO: Get slashed validators
@@ -211,6 +223,8 @@ func GetIndexesFromKeys(
 
 	indexes := make([]uint64, 0)
 
+	// TODO: Note that this also return slashed and exited indexes
+
 	// Use global prepopulated map
 	for _, key := range validatorKeys {
 		indexes = append(indexes, valKeyToIndex[hex.EncodeToString(key)])
@@ -222,12 +236,13 @@ func GetIndexesFromKeys(
 func GetValidatorsWithLessBalance(
 	validatorIndexes []uint64,
 	prevBeaconState *spec.VersionedBeaconState,
-	currentBeaconState *spec.VersionedBeaconState) ([]uint64, *big.Int, *big.Int) {
+	currentBeaconState *spec.VersionedBeaconState) ([]uint64, *big.Int, *big.Int, error) {
 
 	if (prevBeaconState.Altair.Slot/32 + 1) != currentBeaconState.Altair.Slot/32 {
-		// TODO: Handle better this
-		log.Error("Beacon state are not consecutive:", prevBeaconState.Altair.Slot, " vs ", currentBeaconState.Altair.Slot)
-		return nil, nil, nil
+		return nil, nil, nil, errors.New(fmt.Sprintf(
+			"epochs are not consecutive: slot %d vs %d",
+			prevBeaconState.Altair.Slot,
+			currentBeaconState.Altair.Slot))
 	}
 
 	indexesWithLessBalance := make([]uint64, 0)
@@ -237,6 +252,7 @@ func GetValidatorsWithLessBalance(
 	for _, valIdx := range validatorIndexes {
 		// handle if there was a new validator index not register in the prev state
 		if valIdx >= uint64(len(prevBeaconState.Altair.Balances)) {
+			log.Warn("validator index goes beyond the beacon state indexes")
 			continue
 		}
 
@@ -252,7 +268,7 @@ func GetValidatorsWithLessBalance(
 		}
 	}
 
-	return indexesWithLessBalance, earnedBalance, lostBalance
+	return indexesWithLessBalance, earnedBalance, lostBalance, nil
 }
 
 // See spec: from LSB to MSB: source, target, head.
