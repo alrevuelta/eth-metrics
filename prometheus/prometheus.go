@@ -353,5 +353,16 @@ var (
 		},
 	)
 
+	DeltaEpochBalanceMetrics = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "delta_epoch_balance_metrics",
+			Help:      "",
+		},
+		[]string{
+			"pool",
+		},
+	)
+
 	// TODO: Add remaining time for next slot, to monitor perfomance issues
 )
