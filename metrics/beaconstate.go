@@ -153,8 +153,10 @@ func PopulateParticipationAndBalance(
 		validatorIndexes,
 		beaconState)
 
-	currentBalance, effectiveBalance := GetTotalBalanceAndEffective(validatorIndexes, beaconState)
-	rewards := big.NewInt(0).Sub(currentBalance, effectiveBalance)
+	currentBalance, currentEffectiveBalance := GetTotalBalanceAndEffective(validatorIndexes, beaconState)
+	prevBalance, _ := GetTotalBalanceAndEffective(validatorIndexes, prevBeaconState)
+	rewards := big.NewInt(0).Sub(currentBalance, currentEffectiveBalance)
+	deltaEpochBalance := big.NewInt(0).Sub(currentBalance, prevBalance)
 
 	lessBalanceIndexes, earnedBalance, lostBalance, err := GetValidatorsWithLessBalance(
 		validatorIndexes,
@@ -183,8 +185,9 @@ func PopulateParticipationAndBalance(
 	metrics.IndexesMissedAtt = indexesMissedAtt
 	//metrics.LostBalanceKeys = lostKeys
 	metrics.TotalBalance = currentBalance
-	metrics.EffectiveBalance = effectiveBalance
+	metrics.EffectiveBalance = currentEffectiveBalance
 	metrics.TotalRewards = rewards
+	metrics.DeltaEpochBalance = deltaEpochBalance
 
 	return metrics, nil
 }
@@ -350,6 +353,7 @@ func logMetrics(
 		"totalRewards":                metrics.TotalRewards,
 		"ValidadorKeyMissedAtt":       metrics.IndexesMissedAtt,
 		"ValidadorKeyLessBalance":     metrics.IndexesLessBalance,
+		"DeltaEpochBalance":           metrics.DeltaEpochBalance,
 	}).Info(poolName + " Stats:")
 }
 
@@ -377,6 +381,9 @@ func setPrometheusMetrics(
 
 	prometheus.EpochLostAmountMetrics.WithLabelValues(
 		poolName).Set(float64(metrics.LosedBalance.Int64()))
+
+	prometheus.DeltaEpochBalanceMetrics.WithLabelValues(
+		poolName).Set(float64(metrics.DeltaEpochBalance.Int64()))
 
 	prometheus.NOfTotalVotes.Set(float64(metrics.NOfTotalVotes))
 	prometheus.NOfIncorrectSource.Set(float64(metrics.NOfIncorrectSource))
