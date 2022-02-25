@@ -24,13 +24,20 @@ import (
 
 type BeaconState struct {
 	httpClient    *http.Service
+	eth1Endpoint  string
 	eth2Endpoint  string
 	pg            *postgresql.Postgresql
 	fromAddresses []string
 	poolNames     []string
 }
 
-func NewBeaconState(eth2Endpoint string, pg *postgresql.Postgresql, fromAddresses []string, poolNames []string) (*BeaconState, error) {
+func NewBeaconState(
+	eth1Endpoint string,
+	eth2Endpoint string,
+	pg *postgresql.Postgresql,
+	fromAddresses []string,
+	poolNames []string) (*BeaconState, error) {
+
 	client, err := http.New(context.Background(),
 		http.WithTimeout(60*time.Second),
 		http.WithAddress(eth2Endpoint),
@@ -48,6 +55,7 @@ func NewBeaconState(eth2Endpoint string, pg *postgresql.Postgresql, fromAddresse
 		pg:            pg,
 		fromAddresses: fromAddresses,
 		poolNames:     poolNames,
+		eth1Endpoint:  eth1Endpoint,
 	}, nil
 }
 
@@ -81,6 +89,7 @@ func (p *BeaconState) Run() {
 		// TODO: Retry once if fails
 		currentBeaconState, err := p.GetBeaconState(currentEpoch)
 		if err != nil {
+			prevBeaconState = nil
 			log.Error("Error fetching beacon state:", err)
 			continue
 		}
@@ -96,15 +105,31 @@ func (p *BeaconState) Run() {
 		}
 
 		for _, poolName := range p.poolNames {
-			poolAddressList := pools.PoolsAddresses[poolName]
-			log.Info("The pool:", poolName, " keys are: ", poolAddressList)
-			pubKeysDeposited, err := p.pg.GetKeysByFromAddresses(poolAddressList)
-			if err != nil {
-				log.Error(err)
-				continue
+			var pubKeysDeposited [][]byte
+
+			// Special case: hardcoded keys
+			if poolName == "coinbase" {
+				pubKeysDeposited = pools.GetHardcodedCoinbaseKeys()
+				log.Info("The pool:", poolName, " contains ", len(pubKeysDeposited), " keys")
+			} else if poolName == "rocketpool" {
+				pubKeysDeposited = pools.RocketPoolKeys
+			} else {
+				poolAddressList := pools.PoolsAddresses[poolName]
+				log.Info("The pool:", poolName, " keys are: ", poolAddressList)
+				pubKeysDeposited, err = p.pg.GetKeysByFromAddresses(poolAddressList)
+				if err != nil {
+					log.Error(err)
+					continue
+				}
+			}
+
+			if len(pubKeysDeposited) == 0 {
+				log.Warn("No deposited keys for: ", poolName, ", skipping")
 			}
 
 			valKeyToIndex := PopulateKeysToIndexesMap(currentBeaconState)
+
+			// TODO: len(validatorIndexes) is used as active keys but its not.
 			validatorIndexes := GetIndexesFromKeys(pubKeysDeposited, valKeyToIndex)
 
 			metrics, err := PopulateParticipationAndBalance(
@@ -195,6 +220,7 @@ func PopulateParticipationAndBalance(
 // TODO: Get slashed validators
 
 func (p *BeaconState) GetBeaconState(epoch uint64) (*spec.VersionedBeaconState, error) {
+	log.Info("Fetching beacon state for epoch: ", epoch)
 	slotStr := strconv.FormatUint(epoch*32, 10)
 	beaconState, err := p.httpClient.BeaconState(
 		context.Background(),
@@ -209,9 +235,16 @@ func (p *BeaconState) GetBeaconState(epoch uint64) (*spec.VersionedBeaconState, 
 func GetTotalBalanceAndEffective(
 	validatorIndexes []uint64,
 	beaconState *spec.VersionedBeaconState) (*big.Int, *big.Int) {
+
 	totalBalances := big.NewInt(0).SetUint64(0)
 	effectiveBalance := big.NewInt(0).SetUint64(0)
+
 	for _, valIdx := range validatorIndexes {
+		// Skip if index is not present in the beacon state
+		if valIdx >= uint64(len(beaconState.Altair.Balances)) {
+			log.Warn("validator index goes beyond the beacon state indexes")
+			continue
+		}
 		valBalance := big.NewInt(0).SetUint64(beaconState.Altair.Balances[valIdx])
 		valEffBalance := big.NewInt(0).SetUint64(uint64(beaconState.Altair.Validators[valIdx].EffectiveBalance))
 		totalBalances.Add(totalBalances, valBalance)

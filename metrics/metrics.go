@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/alrevuelta/eth-pools-metrics/config"
+	"github.com/alrevuelta/eth-pools-metrics/pools"
 	"github.com/alrevuelta/eth-pools-metrics/postgresql"
 	prysmconcurrent "github.com/alrevuelta/eth-pools-metrics/prysm-concurrent"
 	"github.com/alrevuelta/eth-pools-metrics/thegraph"
@@ -102,6 +103,7 @@ func (a *Metrics) Run() {
 	//go a.StreamValidatorPerformance()
 	//go a.StreamValidatorStatus()
 	bc, err := NewBeaconState(
+		a.eth1Address,
 		a.eth2Address,
 		a.postgresql,
 		a.fromAddrList,
@@ -109,6 +111,12 @@ func (a *Metrics) Run() {
 	)
 	if err != nil {
 		log.Error(err)
+	}
+	for _, poolName := range a.PoolNames {
+		if poolName == "rocketpool" {
+			go pools.RocketPoolFetcher(a.eth1Address)
+			break
+		}
 	}
 	go bc.Run()
 }

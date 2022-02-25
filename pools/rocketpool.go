@@ -25,7 +25,22 @@ var rocketStorage = "0x1d8f8f00cfa6758d7bE78336684788Fb0ee0Fa46"
 // Memory cache of already known minipools and its data
 var MinipoolsByAddress map[string]*RocketpoolMinipool = make(map[string]*RocketpoolMinipool, 0)
 
+var RocketPoolKeys [][]byte
+
+func RocketPoolFetcher(eth1Address string) {
+	todoSetAsFlag := 60 * time.Minute
+	ticker := time.NewTicker(todoSetAsFlag)
+	for ; true; <-ticker.C {
+		keys, err := GetRocketPoolKeys(eth1Address)
+		if err != nil {
+			log.Error("could not get rocketpool keys: ", err)
+		}
+		RocketPoolKeys = keys
+	}
+}
+
 func GetRocketPoolKeys(eth1Address string) ([][]byte, error) {
+	log.Info("Fetching rocket pool keys")
 	t0 := time.Now()
 	proxy := client.NewEth1ClientProxy(60*time.Second, eth1Address)
 	rp, err := rocketpool.NewRocketPool(proxy, common.HexToAddress(rocketStorage))
