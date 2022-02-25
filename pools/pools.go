@@ -90,6 +90,7 @@ var PoolsAddresses = map[string][]string{
 		"0x1fa953ef0c089b342656194e569d2bc0de698add",
 		"0x4e017a192177abdae99250b6a0809dd76c856767",
 		"0xaa5104d696a3c8ab61331c87d9294c0ae1f5aa51",
+		"0x0194512e77d798E4871973d9cB9D7DDFC0fFd801",
 	},
 	"stkr": {
 		"0x4069d8a3de3a72eca86ca5e0a4b94619085e7362",
