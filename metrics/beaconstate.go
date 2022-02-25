@@ -125,6 +125,7 @@ func (p *BeaconState) Run() {
 
 			if len(pubKeysDeposited) == 0 {
 				log.Warn("No deposited keys for: ", poolName, ", skipping")
+				continue
 			}
 
 			valKeyToIndex := PopulateKeysToIndexesMap(currentBeaconState)
