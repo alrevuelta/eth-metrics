@@ -1,12 +1,13 @@
 package price
 
 import (
+	"time"
+
 	"github.com/alrevuelta/eth-pools-metrics/postgresql"
 	"github.com/alrevuelta/eth-pools-metrics/prometheus"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	gecko "github.com/superoo7/go-gecko/v3"
-	"time"
 )
 
 var ids = []string{"ethereum"}
@@ -42,7 +43,9 @@ func NewPrice(postgresEndpoint string) (*Price, error) {
 
 func (p *Price) GetEthPrice() {
 	sp, err := p.coingecko.SimplePrice(ids, vc)
-	if err != nil { log.Error(err) }
+	if err != nil {
+		log.Error(err)
+	}
 
 	eth := (*sp)["ethereum"]
 	ethPriceUsd := eth["usd"]
@@ -52,15 +55,16 @@ func (p *Price) GetEthPrice() {
 
 	if p.postgresql != nil {
 		err := p.postgresql.StoreEthPrice(ethPriceUsd)
-		if err != nil { log.Error(err) }
+		if err != nil {
+			log.Error(err)
+		}
 	}
 }
 
 func (p *Price) Run() {
-	p.GetEthPrice()
-
-	todoSetAsFlagUpdateTimeInSeconds := 60*60
-	for range time.Tick(time.Second * time.Duration(todoSetAsFlagUpdateTimeInSeconds)) {
+	todoSetAsFlag := 30 * time.Minute
+	ticker := time.NewTicker(todoSetAsFlag)
+	for ; true; <-ticker.C {
 		p.GetEthPrice()
 	}
 }
