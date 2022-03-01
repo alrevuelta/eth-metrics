@@ -364,5 +364,21 @@ var (
 		},
 	)
 
+	TotalDepositedValidators = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "total_validators",
+			Help:      "Total validators",
+		},
+	)
+
+	TotalSlashedValidators = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "total_slashed_validators",
+			Help:      "Total validators",
+		},
+	)
+
 	// TODO: Add remaining time for next slot, to monitor perfomance issues
 )
