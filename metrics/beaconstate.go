@@ -104,6 +104,22 @@ func (p *BeaconState) Run() {
 			}
 		}
 
+		// General network metrics
+		// TODO: Sync committee
+		// TODO:
+		nOfSlashedValidators := 0
+		for _, val := range currentBeaconState.Altair.Validators {
+			if val.Slashed {
+				nOfSlashedValidators++
+			}
+		}
+		prometheus.TotalDepositedValidators.Set(float64(len(currentBeaconState.Altair.Validators)))
+		prometheus.TotalSlashedValidators.Set(float64(nOfSlashedValidators))
+		log.WithFields(log.Fields{
+			"Total Validators":         len(currentBeaconState.Altair.Validators),
+			"Total Slashed Validators": nOfSlashedValidators,
+		}).Info("Network stats:")
+
 		for _, poolName := range p.poolNames {
 			var pubKeysDeposited [][]byte
 
