@@ -180,14 +180,6 @@ var (
 		},
 	)
 
-	CumulativeRewards = promauto.NewGauge(
-		prometheus.GaugeOpts{
-			Namespace: "validators",
-			Name:      "cumulative_rewards",
-			Help:      "Cumulative rewards for all validators",
-		},
-	)
-
 	TotalBalance = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: "validators",
@@ -358,6 +350,17 @@ var (
 			Namespace: "validators",
 			Name:      "delta_epoch_balance_metrics",
 			Help:      "",
+		},
+		[]string{
+			"pool",
+		},
+	)
+
+	CumulativeConsensusRewards = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "cumulative_consensus_rewards",
+			Help:      "Cumulative rewards",
 		},
 		[]string{
 			"pool",
