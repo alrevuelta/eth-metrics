@@ -78,7 +78,9 @@ func (p *BeaconState) Run() {
 		// TODO: Don't hardcode 32
 		// Floor division
 		// Go 1 epoch behind head
-		currentEpoch := uint64(headSlot.HeadSlot)/uint64(32) - 1
+		// TODO: Go 3 epoch behind. I suspect there is an issue with the beacon state.
+		// If finally there is not, change this back
+		currentEpoch := uint64(headSlot.HeadSlot)/uint64(32) - 3
 
 		if prevEpoch >= currentEpoch {
 			// do nothing
@@ -126,18 +128,19 @@ func (p *BeaconState) Run() {
 			// Special case: hardcoded keys
 			if poolName == "coinbase" {
 				pubKeysDeposited = pools.GetHardcodedCoinbaseKeys()
-				log.Info("The pool:", poolName, " contains ", len(pubKeysDeposited), " keys")
 			} else if poolName == "rocketpool" {
 				pubKeysDeposited = pools.RocketPoolKeys
 			} else {
 				poolAddressList := pools.PoolsAddresses[poolName]
-				log.Info("The pool:", poolName, " keys are: ", poolAddressList)
+				log.Info("The pool:", poolName, " from-address are: ", poolAddressList)
 				pubKeysDeposited, err = p.pg.GetKeysByFromAddresses(poolAddressList)
 				if err != nil {
 					log.Error(err)
 					continue
 				}
 			}
+
+			log.Info("The pool:", poolName, " contains ", len(pubKeysDeposited), " keys")
 
 			if len(pubKeysDeposited) == 0 {
 				log.Warn("No deposited keys for: ", poolName, ", skipping")
@@ -435,15 +438,19 @@ func setPrometheusMetrics(
 	prometheus.DeltaEpochBalanceMetrics.WithLabelValues(
 		poolName).Set(float64(metrics.DeltaEpochBalance.Int64()))
 
-	prometheus.NOfTotalVotes.Set(float64(metrics.NOfTotalVotes))
-	prometheus.NOfIncorrectSource.Set(float64(metrics.NOfIncorrectSource))
-	prometheus.NOfIncorrectTarget.Set(float64(metrics.NOfIncorrectTarget))
-	prometheus.NOfIncorrectHead.Set(float64(metrics.NOfIncorrectHead))
-	prometheus.EarnedAmountInEpoch.Set(float64(metrics.EarnedBalance.Int64()))
-	prometheus.LosedAmountInEpoch.Set(float64(metrics.LosedBalance.Int64()))
-	prometheus.CumulativeRewards.Set(float64(metrics.TotalRewards.Int64()))
-	prometheus.TotalBalance.Set(float64(metrics.TotalBalance.Int64()))
-	prometheus.EffectiveBalance.Set(float64(metrics.EffectiveBalance.Int64()))
+	prometheus.CumulativeConsensusRewards.WithLabelValues(
+		poolName).Set(float64(metrics.TotalRewards.Int64()))
+
+	// TODO: Remove this from here and from prometheus
+	//prometheus.NOfTotalVotes.Set(float64(metrics.NOfTotalVotes))
+	//prometheus.NOfIncorrectSource.Set(float64(metrics.NOfIncorrectSource))
+	//prometheus.NOfIncorrectTarget.Set(float64(metrics.NOfIncorrectTarget))
+	//prometheus.NOfIncorrectHead.Set(float64(metrics.NOfIncorrectHead))
+	//prometheus.EarnedAmountInEpoch.Set(float64(metrics.EarnedBalance.Int64()))
+	//prometheus.LosedAmountInEpoch.Set(float64(metrics.LosedBalance.Int64()))
+	//prometheus.CumulativeRewards.Set(float64(metrics.TotalRewards.Int64()))
+	//prometheus.TotalBalance.Set(float64(metrics.TotalBalance.Int64()))
+	//prometheus.EffectiveBalance.Set(float64(metrics.EffectiveBalance.Int64()))
 
 	// TODO: Deprecate this, send the raw number
 	balanceDecreasedPercent := (float64(metrics.NOfValsWithLessBalance) / float64(metrics.NOfValidatingKeys)) * 100
