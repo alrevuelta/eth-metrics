@@ -128,6 +128,8 @@ func (p *BeaconState) Run() {
 			// Special case: hardcoded keys
 			if poolName == "coinbase" {
 				pubKeysDeposited = pools.GetHardcodedCoinbaseKeys()
+			} else if poolName == "stakely" {
+				pubKeysDeposited = pools.GetHardcodedStakelyKeys()
 			} else if poolName == "rocketpool" {
 				pubKeysDeposited = pools.RocketPoolKeys
 			} else {
@@ -140,7 +142,7 @@ func (p *BeaconState) Run() {
 				}
 			}
 
-			log.Info("The pool:", poolName, " contains ", len(pubKeysDeposited), " keys")
+			log.Info("The pool:", poolName, " contains ", len(pubKeysDeposited), " keys (may be hardcoded)")
 
 			if len(pubKeysDeposited) == 0 {
 				log.Warn("No deposited keys for: ", poolName, ", skipping")
@@ -151,6 +153,9 @@ func (p *BeaconState) Run() {
 
 			// TODO: len(validatorIndexes) is used as active keys but its not.
 			validatorIndexes := GetIndexesFromKeys(pubKeysDeposited, valKeyToIndex)
+
+			log.Info("The pool:", poolName, " contains ", len(validatorIndexes), " detected in the beacon state")
+			//log.Info(validatorIndexes)
 
 			metrics, err := PopulateParticipationAndBalance(
 				validatorIndexes,
@@ -283,7 +288,11 @@ func GetIndexesFromKeys(
 
 	// Use global prepopulated map
 	for _, key := range validatorKeys {
-		indexes = append(indexes, valKeyToIndex[hex.EncodeToString(key)])
+		// TODO: Test this. if a validatorKeys is not present, dont add garbage to the indexes list
+		// I think the bug was here.
+		if valIndex, ok := valKeyToIndex[hex.EncodeToString(key)]; ok {
+			indexes = append(indexes, valIndex)
+		}
 	}
 
 	return indexes
