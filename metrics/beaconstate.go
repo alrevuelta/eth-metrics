@@ -171,6 +171,10 @@ func (p *BeaconState) Run() {
 				pubKeysDeposited = pools.GetHardcodedStakefishKeys()
 			} else if poolName == "stakely" {
 				pubKeysDeposited = pools.GetHardcodedStakelyKeys()
+			} else if poolName == "stakin" {
+				pubKeysDeposited = pools.GetHardcodedStakinKeys()
+			} else if poolName == "stakingfacilities" {
+				pubKeysDeposited = pools.GetHardcodedStakingfacilitiesKeys()
 
 				// From known from-addresses
 			} else {
