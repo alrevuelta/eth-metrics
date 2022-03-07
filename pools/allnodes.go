@@ -5,6 +5,27 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+/*
+to see the operators and their count.
+
+
+
+
+For lido operators run this
+
+SELECT sum(cast(largeInteger as numeric)), sum(f_effective_balance) FROM `high-hue-328212.chaind.t_validator_balances`
+where f_validator_index in (
+    SELECT f_index FROM `high-hue-328212.chaind.t_validators`
+where f_public_key in (
+
+
+SELECT f_public_key FROM `high-hue-328212.chaind.t_operators`
+where f_operator_name = "stakefish"
+)
+)
+
+*/
+
 var allnodesKeysStr = []string{
 
 	"0x8eb320ec5e89f4077055806ccad3c774dc81444cd34699d40abbe2c31094e488606a3858eb827077ecc7f09334507179",

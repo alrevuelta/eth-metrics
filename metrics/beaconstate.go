@@ -98,7 +98,7 @@ func (p *BeaconState) Run() {
 
 		// if no prev beacon state is known, fetch it
 		if prevBeaconState == nil {
-			prevBeaconState, err = p.GetBeaconState(currentEpoch - 1)
+			prevBeaconState, err = p.GetBeaconState(currentEpoch - 2)
 			// TODO: Retry
 			if err != nil {
 				log.Error(err)
@@ -130,6 +130,8 @@ func (p *BeaconState) Run() {
 				pubKeysDeposited = pools.GetHardcodedCoinbaseKeys()
 			} else if poolName == "rocketpool" {
 				pubKeysDeposited = pools.RocketPoolKeys
+			} else if poolName == "bloxstaking" {
+				pubKeysDeposited = pools.GetHardcodedBloxstakingKeys()
 				// ---Lido----
 			} else if poolName == "allnodes" {
 				pubKeysDeposited = pools.GetHardcodedAllnodesKeys()
@@ -200,7 +202,7 @@ func (p *BeaconState) Run() {
 			validatorIndexes := GetIndexesFromKeys(pubKeysDeposited, valKeyToIndex)
 
 			log.Info("The pool:", poolName, " contains ", len(validatorIndexes), " detected in the beacon state")
-			log.Info(validatorIndexes)
+			//log.Info(validatorIndexes)
 
 			metrics, err := PopulateParticipationAndBalance(
 				validatorIndexes,
