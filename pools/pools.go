@@ -642,7 +642,7 @@ var PoolsAddresses = map[string][]string{
 	"teku-team": {
 		"0x43a0927a6361258e6cbaed415df275a412c543b5",
 	},
-	"numbus-team": {
+	"nimbus-team": {
 		"0x5efaefd5f8a42723bb095194c9202bf2b83d8eb6",
 	},
 }
