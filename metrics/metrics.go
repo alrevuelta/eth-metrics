@@ -111,6 +111,7 @@ func (a *Metrics) Run() {
 	)
 	if err != nil {
 		log.Error(err)
+		// TODO: Add return here.
 	}
 	for _, poolName := range a.PoolNames {
 		if poolName == "rocketpool" {

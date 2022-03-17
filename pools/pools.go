@@ -630,4 +630,16 @@ var PoolsAddresses = map[string][]string{
 	"whale10": {
 		"0x51226113a35a29cda0030ef221e90baef221278b",
 	},
+	"lighthouse-team": {
+		"0xFCD50905214325355A57aE9df084C5dd40D5D478",
+	},
+	"prysm-team": {
+		"0x7badde47f41ceb2c0889091c8fc69e4d9059fb19",
+	},
+	"teku-team": {
+		"0x43a0927a6361258e6cbaed415df275a412c543b5",
+	},
+	"numbus-team": {
+		"0x5efaefd5f8a42723bb095194c9202bf2b83d8eb6",
+	},
 }
