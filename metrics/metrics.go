@@ -82,16 +82,10 @@ func NewMetrics(
 		}
 	}
 
-	keys, err := ReadCustomValidatorsFile(config.CustomValidatorFile)
-	if err != nil {
-		return nil, errors.Wrap(err, "unable to parse validator pubkeys from json file "+config.CustomValidatorFile)
-	}
-
 	return &Metrics{
 		//theGraph:     theGraph,
-		withCredList:   config.WithdrawalCredentials,
-		fromAddrList:   config.FromAddress,
-		validatingKeys: keys,
+		withCredList: config.WithdrawalCredentials,
+		fromAddrList: config.FromAddress,
 		//genesisSeconds:    uint64(genesis.GenesisTime.Seconds),
 		//slotsInEpoch:      uint64(slotsInEpoch),
 		eth1Address: config.Eth1Address,
@@ -113,7 +107,6 @@ func (a *Metrics) Run() {
 		a.postgresql,
 		a.fromAddrList,
 		a.PoolNames,
-		a.validatingKeys,
 	)
 	if err != nil {
 		log.Error(err)

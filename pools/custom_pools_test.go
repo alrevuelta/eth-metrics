@@ -1,4 +1,4 @@
-package metrics
+package pools
 
 import (
 	"fmt"

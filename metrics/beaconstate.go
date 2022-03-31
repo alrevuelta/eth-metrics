@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -23,13 +24,12 @@ import (
 )
 
 type BeaconState struct {
-	httpClient     *http.Service
-	eth1Endpoint   string
-	eth2Endpoint   string
-	pg             *postgresql.Postgresql
-	fromAddresses  []string
-	poolNames      []string
-	validatingKeys [][]byte
+	httpClient    *http.Service
+	eth1Endpoint  string
+	eth2Endpoint  string
+	pg            *postgresql.Postgresql
+	fromAddresses []string
+	poolNames     []string
 }
 
 func NewBeaconState(
@@ -37,8 +37,7 @@ func NewBeaconState(
 	eth2Endpoint string,
 	pg *postgresql.Postgresql,
 	fromAddresses []string,
-	poolNames []string,
-	validatingKeys [][]byte) (*BeaconState, error) {
+	poolNames []string) (*BeaconState, error) {
 
 	client, err := http.New(context.Background(),
 		http.WithTimeout(60*time.Second),
@@ -52,13 +51,12 @@ func NewBeaconState(
 	httpClient := client.(*http.Service)
 
 	return &BeaconState{
-		httpClient:     httpClient,
-		eth2Endpoint:   eth2Endpoint,
-		pg:             pg,
-		fromAddresses:  fromAddresses,
-		poolNames:      poolNames,
-		eth1Endpoint:   eth1Endpoint,
-		validatingKeys: validatingKeys,
+		httpClient:    httpClient,
+		eth2Endpoint:  eth2Endpoint,
+		pg:            pg,
+		fromAddresses: fromAddresses,
+		poolNames:     poolNames,
+		eth1Endpoint:  eth1Endpoint,
 	}, nil
 }
 
@@ -180,10 +178,26 @@ func (p *BeaconState) Run() {
 				pubKeysDeposited = pools.GetHardcodedStakinKeys()
 			} else if poolName == "stakingfacilities" {
 				pubKeysDeposited = pools.GetHardcodedStakingfacilitiesKeys()
-			} else if poolName == "custom" {
-				pubKeysDeposited = p.validatingKeys
+			} else if strings.Contains(poolName, ".json") {
+				log.Infof("custom set of keys detected! custom set at: %s", poolName)
+				// if a .json appears in the poolname, we can asume that is a custom poolname that can be read from a json
 
-				// From known from-addresses
+				// read the keys of that specif file
+				keys, err := pools.ReadCustomValidatorsFile(poolName)
+				if err != nil {
+					errors.Errorf("unable to parse validator pubkeys from json file %s. %s", poolName, err.Error())
+				}
+
+				// TODO: remove any traces from the path that contains the file
+				if strings.Contains(poolName, "/") {
+					steps := strings.Split(poolName, "/")
+					poolName = steps[len(steps)]
+				}
+				// Remove the .json traces
+				poolName = strings.Replace(poolName, ".json", "", 1)
+
+				pubKeysDeposited = keys
+
 			} else {
 				poolAddressList := pools.PoolsAddresses[poolName]
 				log.Info("The pool:", poolName, " from-address are: ", poolAddressList)
