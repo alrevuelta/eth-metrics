@@ -113,6 +113,7 @@ func (a *Metrics) Run() {
 		a.postgresql,
 		a.fromAddrList,
 		a.PoolNames,
+		a.validatingKeys,
 	)
 	if err != nil {
 		log.Error(err)

@@ -23,12 +23,13 @@ import (
 )
 
 type BeaconState struct {
-	httpClient    *http.Service
-	eth1Endpoint  string
-	eth2Endpoint  string
-	pg            *postgresql.Postgresql
-	fromAddresses []string
-	poolNames     []string
+	httpClient     *http.Service
+	eth1Endpoint   string
+	eth2Endpoint   string
+	pg             *postgresql.Postgresql
+	fromAddresses  []string
+	poolNames      []string
+	validatingKeys [][]byte
 }
 
 func NewBeaconState(
@@ -36,7 +37,8 @@ func NewBeaconState(
 	eth2Endpoint string,
 	pg *postgresql.Postgresql,
 	fromAddresses []string,
-	poolNames []string) (*BeaconState, error) {
+	poolNames []string,
+	validatingKeys [][]byte) (*BeaconState, error) {
 
 	client, err := http.New(context.Background(),
 		http.WithTimeout(60*time.Second),
@@ -50,12 +52,13 @@ func NewBeaconState(
 	httpClient := client.(*http.Service)
 
 	return &BeaconState{
-		httpClient:    httpClient,
-		eth2Endpoint:  eth2Endpoint,
-		pg:            pg,
-		fromAddresses: fromAddresses,
-		poolNames:     poolNames,
-		eth1Endpoint:  eth1Endpoint,
+		httpClient:     httpClient,
+		eth2Endpoint:   eth2Endpoint,
+		pg:             pg,
+		fromAddresses:  fromAddresses,
+		poolNames:      poolNames,
+		eth1Endpoint:   eth1Endpoint,
+		validatingKeys: validatingKeys,
 	}, nil
 }
 
@@ -177,12 +180,14 @@ func (p *BeaconState) Run() {
 				pubKeysDeposited = pools.GetHardcodedStakinKeys()
 			} else if poolName == "stakingfacilities" {
 				pubKeysDeposited = pools.GetHardcodedStakingfacilitiesKeys()
+			} else if poolName == "custom" {
+				pubKeysDeposited = p.validatingKeys
 
 				// From known from-addresses
 			} else {
 				poolAddressList := pools.PoolsAddresses[poolName]
 				log.Info("The pool:", poolName, " from-address are: ", poolAddressList)
-				pubKeysDeposited, err = p.pg.GetKeysByFromAddresses(poolAddressList)
+				//pubKeysDeposited, err = p.pg.GetKeysByFromAddresses(poolAddressList)
 				if err != nil {
 					log.Error(err)
 					continue
