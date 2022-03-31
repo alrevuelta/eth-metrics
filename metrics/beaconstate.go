@@ -191,7 +191,7 @@ func (p *BeaconState) Run() {
 				// TODO: remove any traces from the path that contains the file
 				if strings.Contains(poolName, "/") {
 					steps := strings.Split(poolName, "/")
-					poolName = steps[len(steps)]
+					poolName = steps[len(steps)-1]
 				}
 				// Remove the .json traces
 				poolName = strings.Replace(poolName, ".json", "", 1)
