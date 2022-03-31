@@ -37,9 +37,8 @@ type Metrics struct {
 
 	// Slot and epoch and its raw data
 	// TODO: Remove, each metric task has its pace
-	Epoch uint64
-	Slot  uint64
-
+	Epoch     uint64
+	Slot      uint64
 	PoolNames []string
 }
 
@@ -83,10 +82,16 @@ func NewMetrics(
 		}
 	}
 
+	keys, err := ReadCustomValidatorsFile(config.CustomValidatorFile)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to parse validator pubkeys from json file "+config.CustomValidatorFile)
+	}
+
 	return &Metrics{
 		//theGraph:     theGraph,
-		withCredList: config.WithdrawalCredentials,
-		fromAddrList: config.FromAddress,
+		withCredList:   config.WithdrawalCredentials,
+		fromAddrList:   config.FromAddress,
+		validatingKeys: keys,
 		//genesisSeconds:    uint64(genesis.GenesisTime.Seconds),
 		//slotsInEpoch:      uint64(slotsInEpoch),
 		eth1Address: config.Eth1Address,

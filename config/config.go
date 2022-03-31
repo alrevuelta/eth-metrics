@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
 	log "github.com/sirupsen/logrus"
@@ -16,6 +17,7 @@ type Config struct {
 	//Network               string
 	WithdrawalCredentials []string
 	FromAddress           []string
+	CustomValidatorFile   string
 	BeaconRpcEndpoint     string
 	PrometheusPort        int
 	Postgres              string
@@ -46,6 +48,7 @@ func NewCliConfig() (*Config, error) {
 	flag.Var(&poolNames, "pool-name", "Pool name to monitor. Can be useed multiple times")
 
 	//var network = flag.String("network", "mainnet", "Ethereum 2.0 network mainnet|prater|pyrmont")
+	var customValidatorFile = flag.String("validator-file", "custom_validators.json", "file containing list of custom validators")
 	var beaconRpcEndpoint = flag.String("beacon-rpc-endpoint", "localhost:4000", "Address:Port of a eth2 beacon node endpoint")
 	var prometheusPort = flag.Int("prometheus-port", 9500, "Prometheus port to listen to")
 	var version = flag.Bool("version", false, "Prints the release version and exits")
@@ -54,6 +57,8 @@ func NewCliConfig() (*Config, error) {
 	var eth1Address = flag.String("eth1address", "", "Ethereum 1 http endpoint. To be used by rocket pool")
 	var eth2Address = flag.String("eth2address", "", "Ethereum 2 http endpoint")
 	flag.Parse()
+	fmt.Println("postgres: ")
+	fmt.Println(*postgres)
 
 	if *version {
 		log.Info("Version: ", ReleaseVersion)
@@ -79,6 +84,7 @@ func NewCliConfig() (*Config, error) {
 	conf := &Config{
 		PoolNames: poolNames,
 		//Network:               *network,
+		CustomValidatorFile:   *customValidatorFile,
 		BeaconRpcEndpoint:     *beaconRpcEndpoint,
 		PrometheusPort:        *prometheusPort,
 		WithdrawalCredentials: withdrawalCredentials,
@@ -94,6 +100,7 @@ func NewCliConfig() (*Config, error) {
 func logConfig(cfg *Config) {
 	log.WithFields(log.Fields{
 		"PoolNames":             cfg.PoolNames,
+		"CustomValidatorFile":   cfg.CustomValidatorFile,
 		"BeaconRpcEndpoint":     cfg.BeaconRpcEndpoint,
 		"WithdrawalCredentials": cfg.WithdrawalCredentials,
 		"FromAddress":           cfg.FromAddress,

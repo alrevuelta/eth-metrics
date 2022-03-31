@@ -215,7 +215,7 @@ func (a *Postgresql) GetKeysByFromAddresses(fromAddresses []string) ([][]byte, e
 		`select encode(f_validator_pubkey, 'hex')
 		from t_eth1_deposits
 		where (`+getDepositsWhereClause(fromAddresses)+")")
-
+	fmt.Println(err)
 	if err != nil {
 		return nil, errors.Wrap(err,
 			fmt.Sprintf("%s: %s", "could not get keys for pool",
