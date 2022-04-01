@@ -17,6 +17,8 @@ import (
 	"github.com/alrevuelta/eth-pools-metrics/schemas"
 	"github.com/attestantio/go-eth2-client/http"
 	"github.com/attestantio/go-eth2-client/spec"
+	"github.com/attestantio/go-eth2-client/spec/altair"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/rs/zerolog"
 
 	log "github.com/sirupsen/logrus"
@@ -110,15 +112,17 @@ func (p *BeaconState) Run() {
 		// TODO: Sync committee
 		// TODO:
 		nOfSlashedValidators := 0
-		for _, val := range currentBeaconState.Altair.Validators {
+		validators := GetValidators(currentBeaconState)
+
+		for _, val := range validators {
 			if val.Slashed {
 				nOfSlashedValidators++
 			}
 		}
-		prometheus.TotalDepositedValidators.Set(float64(len(currentBeaconState.Altair.Validators)))
+		prometheus.TotalDepositedValidators.Set(float64(len(validators)))
 		prometheus.TotalSlashedValidators.Set(float64(nOfSlashedValidators))
 		log.WithFields(log.Fields{
-			"Total Validators":         len(currentBeaconState.Altair.Validators),
+			"Total Validators":         len(validators),
 			"Total Slashed Validators": nOfSlashedValidators,
 		}).Info("Network stats:")
 
@@ -178,7 +182,7 @@ func (p *BeaconState) Run() {
 func PopulateKeysToIndexesMap(beaconState *spec.VersionedBeaconState) map[string]uint64 {
 	// TODO: Naive approach. Reset the map every time
 	valKeyToIndex := make(map[string]uint64, 0)
-	for index, beaconStateKey := range beaconState.Altair.Validators {
+	for index, beaconStateKey := range GetValidators(beaconState) {
 		valKeyToIndex[hex.EncodeToString(beaconStateKey.PublicKey[:])] = uint64(index)
 	}
 	return valKeyToIndex
@@ -221,7 +225,7 @@ func PopulateParticipationAndBalance(
 	metrics.LosedBalance = lostBalance
 
 	// TODO: Don't hardcode 32
-	metrics.Epoch = beaconState.Altair.Slot / 32
+	metrics.Epoch = GetSlot(beaconState) / 32
 
 	metrics.NOfTotalVotes = uint64(len(validatorIndexes)) * 3
 	metrics.NOfIncorrectSource = nOfIncorrectSource
@@ -252,7 +256,7 @@ func (p *BeaconState) GetBeaconState(epoch uint64) (*spec.VersionedBeaconState, 
 	if err != nil {
 		return nil, err
 	}
-	log.Info("Got beacon state for epoch:", beaconState.Altair.Slot/32)
+	log.Info("Got beacon state for epoch:", GetSlot(beaconState)/32)
 	return beaconState, nil
 }
 
@@ -262,16 +266,18 @@ func GetTotalBalanceAndEffective(
 
 	totalBalances := big.NewInt(0).SetUint64(0)
 	effectiveBalance := big.NewInt(0).SetUint64(0)
+	validators := GetValidators(beaconState)
+	balances := GetBalances(beaconState)
 
 	for _, valIdx := range validatorIndexes {
 		// Skip if index is not present in the beacon state
-		if valIdx >= uint64(len(beaconState.Altair.Balances)) {
+		if valIdx >= uint64(len(balances)) {
 			log.Warn("validator index goes beyond the beacon state indexes")
 			continue
 		}
-		valBalance := big.NewInt(0).SetUint64(beaconState.Altair.Balances[valIdx])
+		valBalance := big.NewInt(0).SetUint64(balances[valIdx])
 		//log.Info(valIdx, ":", valBalance)
-		valEffBalance := big.NewInt(0).SetUint64(uint64(beaconState.Altair.Validators[valIdx].EffectiveBalance))
+		valEffBalance := big.NewInt(0).SetUint64(uint64(validators[valIdx].EffectiveBalance))
 		totalBalances.Add(totalBalances, valBalance)
 		effectiveBalance.Add(effectiveBalance, valEffBalance)
 	}
@@ -303,11 +309,16 @@ func GetValidatorsWithLessBalance(
 	prevBeaconState *spec.VersionedBeaconState,
 	currentBeaconState *spec.VersionedBeaconState) ([]uint64, *big.Int, *big.Int, error) {
 
-	if (prevBeaconState.Altair.Slot/32 + 1) != currentBeaconState.Altair.Slot/32 {
+	prevEpoch := GetSlot(prevBeaconState) / 32
+	currEpoch := GetSlot(currentBeaconState) / 32
+	prevBalances := GetBalances(prevBeaconState)
+	currBalances := GetBalances(currentBeaconState)
+
+	if (prevEpoch + 1) != currEpoch {
 		return nil, nil, nil, errors.New(fmt.Sprintf(
 			"epochs are not consecutive: slot %d vs %d",
-			prevBeaconState.Altair.Slot,
-			currentBeaconState.Altair.Slot))
+			prevEpoch,
+			currEpoch))
 	}
 
 	indexesWithLessBalance := make([]uint64, 0)
@@ -316,13 +327,13 @@ func GetValidatorsWithLessBalance(
 
 	for _, valIdx := range validatorIndexes {
 		// handle if there was a new validator index not register in the prev state
-		if valIdx >= uint64(len(prevBeaconState.Altair.Balances)) {
+		if valIdx >= uint64(len(prevBalances)) {
 			log.Warn("validator index goes beyond the beacon state indexes")
 			continue
 		}
 
-		prevEpochValBalance := big.NewInt(0).SetUint64(prevBeaconState.Altair.Balances[valIdx])
-		currentEpochValBalance := big.NewInt(0).SetUint64(currentBeaconState.Altair.Balances[valIdx])
+		prevEpochValBalance := big.NewInt(0).SetUint64(prevBalances[valIdx])
+		currentEpochValBalance := big.NewInt(0).SetUint64(currBalances[valIdx])
 		delta := big.NewInt(0).Sub(currentEpochValBalance, prevEpochValBalance)
 
 		if delta.Cmp(big.NewInt(0)) == -1 {
@@ -344,23 +355,26 @@ func GetParticipation(
 
 	indexesMissedAtt := make([]uint64, 0)
 
+	validators := GetValidators(beaconState)
+	previousEpochParticipation := GetPreviousEpochParticipation(beaconState)
+
 	var nIncorrectSource, nIncorrectTarget, nIncorrectHead uint64
 
 	for _, valIndx := range validatorIndexes {
 		// Ignore slashed validators
-		if beaconState.Altair.Validators[valIndx].Slashed {
+		if validators[valIndx].Slashed {
 			continue
 		}
-		beaconStateEpoch := beaconState.Altair.Slot / 32
+		beaconStateEpoch := GetSlot(beaconState) / 32
 		// Ignore not yet active validators
 		// TODO: Test this
-		if uint64(beaconState.Altair.Validators[valIndx].ActivationEpoch) > beaconStateEpoch {
+		if uint64(validators[valIndx].ActivationEpoch) > beaconStateEpoch {
 			//log.Warn("index: ", valIndx, " is not active yet")
 			continue
 		}
 
 		// TODO: Dont know why but Infura returns 0 for all CurrentEpochAttestations
-		epochAttestations := beaconState.Altair.PreviousEpochParticipation[valIndx]
+		epochAttestations := previousEpochParticipation[valIndx]
 		if !isBitSet(uint8(epochAttestations), 0) {
 			nIncorrectSource++
 			indexesMissedAtt = append(indexesMissedAtt, valIndx)
@@ -375,6 +389,7 @@ func GetParticipation(
 	return nIncorrectSource, nIncorrectTarget, nIncorrectHead, indexesMissedAtt
 }
 
+/* TODO: Unused. Add support for Bellatrix
 func GetInactivityScores(
 	validatorIndexes []uint64,
 	beaconState *spec.VersionedBeaconState) []uint64 {
@@ -383,7 +398,7 @@ func GetInactivityScores(
 		inactivityScores = append(inactivityScores, beaconState.Altair.InactivityScores[valIdx])
 	}
 	return inactivityScores
-}
+}*/
 
 // Check if bit n (0..7) is set where 0 is the LSB in little endian
 func isBitSet(input uint8, n int) bool {
@@ -473,4 +488,57 @@ func setPrometheusMetrics(
 	for _, v := range metrics.LostBalanceKeys {
 		prometheus.LessBalanceKeys.WithLabelValues(v).Inc()
 	}*/
+}
+
+// Wrappers on top of the beacon state to fetch some fields regardless of Altair or Bellatrix
+// Note that this is needed because both block types do not implement the same interface, since
+// the state differs accross versions.
+// Note also that this functions only make sense for the beacon state fields that are common
+// to all the versioned beacon states.
+func GetValidators(beaconState *spec.VersionedBeaconState) []*phase0.Validator {
+	var validators []*phase0.Validator
+	if beaconState.Altair != nil {
+		validators = beaconState.Altair.Validators
+	} else if beaconState.Bellatrix != nil {
+		validators = beaconState.Bellatrix.Validators
+	} else {
+		log.Fatal("Beacon state was empty")
+	}
+	return validators
+}
+
+func GetBalances(beaconState *spec.VersionedBeaconState) []uint64 {
+	var balances []uint64
+	if beaconState.Altair != nil {
+		balances = beaconState.Altair.Balances
+	} else if beaconState.Bellatrix != nil {
+		balances = beaconState.Bellatrix.Balances
+	} else {
+		log.Fatal("Beacon state was empty")
+	}
+	return balances
+}
+
+func GetPreviousEpochParticipation(beaconState *spec.VersionedBeaconState) []altair.ParticipationFlags {
+	var previousEpochParticipation []altair.ParticipationFlags
+	if beaconState.Altair != nil {
+		previousEpochParticipation = beaconState.Altair.PreviousEpochParticipation
+	} else if beaconState.Bellatrix != nil {
+		previousEpochParticipation = beaconState.Bellatrix.PreviousEpochParticipation
+	} else {
+		log.Fatal("Beacon state was empty")
+	}
+	return previousEpochParticipation
+}
+
+func GetSlot(beaconState *spec.VersionedBeaconState) uint64 {
+	var slot uint64
+	if beaconState.Altair != nil {
+		slot = beaconState.Altair.Slot
+	} else if beaconState.Bellatrix != nil {
+		slot = beaconState.Bellatrix.Slot
+	} else {
+		log.Fatal("Beacon state was empty")
+	}
+	return slot
 }
