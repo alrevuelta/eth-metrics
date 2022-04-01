@@ -102,7 +102,7 @@ func (p *BeaconState) Run() {
 
 		// if no prev beacon state is known, fetch it
 		if prevBeaconState == nil {
-			prevBeaconState, err = p.GetBeaconState(currentEpoch - 2)
+			prevBeaconState, err = p.GetBeaconState(currentEpoch - 1)
 			// TODO: Retry
 			if err != nil {
 				log.Error(err)
