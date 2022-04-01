@@ -126,58 +126,10 @@ func (p *BeaconState) Run() {
 			var pubKeysDeposited [][]byte
 
 			// Special case: hardcoded keys
-			if poolName == "coinbase" {
-				pubKeysDeposited = pools.GetHardcodedCoinbaseKeys()
+			if poolName == "TODO.json" {
+				// TODO:
 			} else if poolName == "rocketpool" {
 				pubKeysDeposited = pools.RocketPoolKeys
-			} else if poolName == "bloxstaking" {
-				pubKeysDeposited = pools.GetHardcodedBloxstakingKeys()
-				// ---Lido----
-			} else if poolName == "allnodes" {
-				pubKeysDeposited = pools.GetHardcodedAllnodesKeys()
-			} else if poolName == "anyblockanalytics" {
-				pubKeysDeposited = pools.GetHardcodedAnyblockanalyticsKeys()
-			} else if poolName == "blockdaemon" {
-				pubKeysDeposited = pools.GetHardcodedBlockDaemonKeys()
-			} else if poolName == "blockscape" {
-				pubKeysDeposited = pools.GetHardcodedBlockscapeKeys()
-			} else if poolName == "bridgetower" {
-				pubKeysDeposited = pools.GetHardcodedBridgetowerKeys()
-			} else if poolName == "certusone" {
-				pubKeysDeposited = pools.GetHardcodedCertusoneKeys()
-			} else if poolName == "chainlayer" {
-				pubKeysDeposited = pools.GetHardcodedChainlayerKeys()
-			} else if poolName == "chorusone" {
-				pubKeysDeposited = pools.GetHardcodedChorusoneKeys()
-			} else if poolName == "consensyscodefi" {
-				pubKeysDeposited = pools.GetHardcodedConsensyscodefiKeys()
-			} else if poolName == "dsrv" {
-				pubKeysDeposited = pools.GetHardcodedDsrvKeys()
-			} else if poolName == "everstake" {
-				pubKeysDeposited = pools.GetHardcodedEverstakeKeys()
-			} else if poolName == "figment" {
-				pubKeysDeposited = pools.GetHardcodedFigmentKeys()
-			} else if poolName == "hashquark" {
-				pubKeysDeposited = pools.GetHardcodedHashquarkKeys()
-			} else if poolName == "infstones" {
-				pubKeysDeposited = pools.GetHardcodedInfstonesKeys()
-			} else if poolName == "p2porg" {
-				pubKeysDeposited = pools.GetHardcodedP2porgKeys()
-			} else if poolName == "rockx" {
-				pubKeysDeposited = pools.GetHardcodedRockxKeys()
-			} else if poolName == "simplystaking" {
-				pubKeysDeposited = pools.GetHardcodedSimplystakingKeys()
-			} else if poolName == "skillz" {
-				pubKeysDeposited = pools.GetHardcodedSkillzKeys()
-			} else if poolName == "stakefish" {
-				pubKeysDeposited = pools.GetHardcodedStakefishKeys()
-			} else if poolName == "stakely" {
-				pubKeysDeposited = pools.GetHardcodedStakelyKeys()
-			} else if poolName == "stakin" {
-				pubKeysDeposited = pools.GetHardcodedStakinKeys()
-			} else if poolName == "stakingfacilities" {
-				pubKeysDeposited = pools.GetHardcodedStakingfacilitiesKeys()
-
 				// From known from-addresses
 			} else {
 				poolAddressList := pools.PoolsAddresses[poolName]
