@@ -5,7 +5,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -130,8 +132,14 @@ func (p *BeaconState) Run() {
 			var pubKeysDeposited [][]byte
 
 			// Special case: hardcoded keys
-			if poolName == "TODO.json" {
-				// TODO:
+			if strings.HasSuffix(poolName, ".txt") {
+				pubKeysDeposited, err = pools.ReadCustomValidatorsFile(poolName)
+				if err != nil {
+					log.Fatal(err)
+				}
+				// trim the file path and extension
+				poolName = filepath.Base(poolName)
+				poolName = strings.TrimSuffix(poolName, filepath.Ext(poolName))
 			} else if poolName == "rocketpool" {
 				pubKeysDeposited = pools.RocketPoolKeys
 				// From known from-addresses

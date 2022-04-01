@@ -1,5 +1,14 @@
 package pools
 
+import (
+	"bufio"
+	"os"
+	"strings"
+
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	log "github.com/sirupsen/logrus"
+)
+
 // Eth1 Addresses used to identify the pools in the deposit contract
 var PoolsAddresses = map[string][]string{
 	"kraken": {
@@ -645,4 +654,38 @@ var PoolsAddresses = map[string][]string{
 	"nimbus-team": {
 		"0x5efaefd5f8a42723bb095194c9202bf2b83d8eb6",
 	},
+}
+
+func ReadCustomValidatorsFile(validatorKeysFile string) (validatorKeys [][]byte, err error) {
+	validatorKeys = make([][]byte, 0)
+
+	file, err := os.Open(validatorKeysFile)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		keyStr := scanner.Text()
+		if !strings.HasPrefix(keyStr, "0x") {
+			log.Fatal("keys have to start with 0x: ", keyStr)
+		}
+
+		if len(keyStr) != 98 {
+			log.Fatal("length of key is incorrect: ", keyStr)
+		}
+
+		valKey, err := hexutil.Decode(keyStr)
+		if err != nil {
+			log.Fatal("could not decode key: ", keyStr)
+		}
+		validatorKeys = append(validatorKeys, valKey)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return validatorKeys, nil
 }
