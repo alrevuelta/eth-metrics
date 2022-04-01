@@ -180,15 +180,12 @@ func (p *BeaconState) Run() {
 				pubKeysDeposited = pools.GetHardcodedStakingfacilitiesKeys()
 			} else if strings.Contains(poolName, ".json") {
 				log.Infof("custom set of keys detected! custom set at: %s", poolName)
-				// if a .json appears in the poolname, we can asume that is a custom poolname that can be read from a json
-
-				// read the keys of that specif file
+				// if a .json appears in the poolname, we can asume that is a custom set of validators that can be monitored
 				keys, err := pools.ReadCustomValidatorsFile(poolName)
 				if err != nil {
 					errors.Errorf("unable to parse validator pubkeys from json file %s. %s", poolName, err.Error())
 				}
-
-				// TODO: remove any traces from the path that contains the file
+				// Remove path to file from poolName
 				if strings.Contains(poolName, "/") {
 					steps := strings.Split(poolName, "/")
 					poolName = steps[len(steps)-1]

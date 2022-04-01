@@ -17,12 +17,11 @@ type Config struct {
 	//Network               string
 	WithdrawalCredentials []string
 	FromAddress           []string
-	//CustomValidatorFile   string
-	BeaconRpcEndpoint string
-	PrometheusPort    int
-	Postgres          string
-	Eth1Address       string
-	Eth2Address       string
+	BeaconRpcEndpoint     string
+	PrometheusPort        int
+	Postgres              string
+	Eth1Address           string
+	Eth2Address           string
 }
 
 // custom implementation to allow providing the same flag multiple times
@@ -84,7 +83,6 @@ func NewCliConfig() (*Config, error) {
 	conf := &Config{
 		PoolNames: poolNames,
 		//Network:               *network,
-		//CustomValidatorFile:   *customValidatorFile,
 		BeaconRpcEndpoint:     *beaconRpcEndpoint,
 		PrometheusPort:        *prometheusPort,
 		WithdrawalCredentials: withdrawalCredentials,
@@ -99,8 +97,7 @@ func NewCliConfig() (*Config, error) {
 
 func logConfig(cfg *Config) {
 	log.WithFields(log.Fields{
-		"PoolNames": cfg.PoolNames,
-		//"CustomValidatorFile":   cfg.CustomValidatorFile,
+		"PoolNames":             cfg.PoolNames,
 		"BeaconRpcEndpoint":     cfg.BeaconRpcEndpoint,
 		"WithdrawalCredentials": cfg.WithdrawalCredentials,
 		"FromAddress":           cfg.FromAddress,
