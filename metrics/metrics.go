@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/alrevuelta/eth-pools-metrics/config"
@@ -80,6 +81,17 @@ func NewMetrics(
 		err = pg.CreateTable()
 		if err != nil {
 			return nil, errors.Wrap(err, "error creating pool table to store data")
+		}
+	}
+
+	for _, poolName := range config.PoolNames {
+		if strings.HasSuffix(poolName, ".txt") {
+			pubKeysDeposited, err := pools.ReadCustomValidatorsFile(poolName)
+			if err != nil {
+				log.Fatal(err)
+			}
+			log.Info("File: ", poolName, " contains ", len(pubKeysDeposited), " keys")
+
 		}
 	}
 

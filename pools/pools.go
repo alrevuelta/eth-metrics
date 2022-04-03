@@ -667,9 +667,9 @@ func ReadCustomValidatorsFile(validatorKeysFile string) (validatorKeys [][]byte,
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		keyStr := scanner.Text()
+		keyStr := strings.Trim(scanner.Text(), "\"")
 		if !strings.HasPrefix(keyStr, "0x") {
-			log.Fatal("keys have to start with 0x: ", keyStr)
+			keyStr = "0x" + keyStr
 		}
 
 		if len(keyStr) != 98 {
