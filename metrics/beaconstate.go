@@ -79,11 +79,10 @@ func (p *BeaconState) Run() {
 			log.Error("Node is not in sync")
 			continue
 		}
+
+		// The closer to head, the more risk of having inaccurate data due
+		// to being in a fork. Metrics could also be fetched on finalized epochs.
 		// TODO: Don't hardcode 32
-		// Floor division
-		// Go 1 epoch behind head
-		// TODO: Go 3 epoch behind. I suspect there is an issue with the beacon state.
-		// If finally there is not, change this back
 		currentEpoch := uint64(headSlot.HeadSlot)/uint64(32) - 3
 
 		if prevEpoch >= currentEpoch {
@@ -112,7 +111,6 @@ func (p *BeaconState) Run() {
 
 		// General network metrics
 		// TODO: Sync committee
-		// TODO:
 		nOfSlashedValidators := 0
 		validators := GetValidators(currentBeaconState)
 
@@ -161,15 +159,15 @@ func (p *BeaconState) Run() {
 			}
 
 			valKeyToIndex := PopulateKeysToIndexesMap(currentBeaconState)
-
-			// TODO: len(validatorIndexes) is used as active keys but its not.
 			validatorIndexes := GetIndexesFromKeys(pubKeysDeposited, valKeyToIndex)
+			activeValidatorIndexes := GetActiveIndexes(validatorIndexes, currentBeaconState)
 
-			log.Info("The pool:", poolName, " contains ", len(validatorIndexes), " detected in the beacon state")
+			log.Info("The pool:", poolName, " contains ", len(validatorIndexes), " validators detected in the beacon state")
+			log.Info("The pool:", poolName, " contains ", len(activeValidatorIndexes), " active validators detected in the beacon state")
 			//log.Info(validatorIndexes)
 
 			metrics, err := PopulateParticipationAndBalance(
-				validatorIndexes,
+				activeValidatorIndexes,
 				currentBeaconState,
 				prevBeaconState)
 
@@ -196,9 +194,9 @@ func PopulateKeysToIndexesMap(beaconState *spec.VersionedBeaconState) map[string
 	return valKeyToIndex
 }
 
-// TODO: Skip validators that are not active yet
+// Make sure the validator indexes are active
 func PopulateParticipationAndBalance(
-	validatorIndexes []uint64,
+	activeValidatorIndexes []uint64,
 	beaconState *spec.VersionedBeaconState,
 	prevBeaconState *spec.VersionedBeaconState) (schemas.ValidatorPerformanceMetrics, error) {
 
@@ -211,16 +209,24 @@ func PopulateParticipationAndBalance(
 	}
 
 	nOfIncorrectSource, nOfIncorrectTarget, nOfIncorrectHead, indexesMissedAtt := GetParticipation(
-		validatorIndexes,
+		activeValidatorIndexes,
 		beaconState)
 
-	currentBalance, currentEffectiveBalance := GetTotalBalanceAndEffective(validatorIndexes, beaconState)
-	prevBalance, _ := GetTotalBalanceAndEffective(validatorIndexes, prevBeaconState)
+	currentBalance, currentEffectiveBalance := GetTotalBalanceAndEffective(activeValidatorIndexes, beaconState)
+	prevBalance, prevEffectiveBalance := GetTotalBalanceAndEffective(activeValidatorIndexes, prevBeaconState)
+
+	// Make sure we are comparing apples to apples
+	if currentEffectiveBalance.Cmp(prevEffectiveBalance) != 0 {
+		return schemas.ValidatorPerformanceMetrics{},
+			errors.New(fmt.Sprint("Can't calculate delta balances, effective balances are different:",
+				currentEffectiveBalance, " vs ", prevEffectiveBalance))
+	}
+
 	rewards := big.NewInt(0).Sub(currentBalance, currentEffectiveBalance)
 	deltaEpochBalance := big.NewInt(0).Sub(currentBalance, prevBalance)
 
 	lessBalanceIndexes, earnedBalance, lostBalance, err := GetValidatorsWithLessBalance(
-		validatorIndexes,
+		activeValidatorIndexes,
 		prevBeaconState,
 		beaconState)
 
@@ -235,11 +241,11 @@ func PopulateParticipationAndBalance(
 	// TODO: Don't hardcode 32
 	metrics.Epoch = GetSlot(beaconState) / 32
 
-	metrics.NOfTotalVotes = uint64(len(validatorIndexes)) * 3
+	metrics.NOfTotalVotes = uint64(len(activeValidatorIndexes)) * 3
 	metrics.NOfIncorrectSource = nOfIncorrectSource
 	metrics.NOfIncorrectTarget = nOfIncorrectTarget
 	metrics.NOfIncorrectHead = nOfIncorrectHead
-	metrics.NOfValidatingKeys = uint64(len(validatorIndexes))
+	metrics.NOfValidatingKeys = uint64(len(activeValidatorIndexes))
 	//metrics.NOfValsWithLessBalance = nOfValsWithDecreasedBalance
 	//metrics.EarnedBalance = earned
 	//metrics.LosedBalance = losed
@@ -269,7 +275,7 @@ func (p *BeaconState) GetBeaconState(epoch uint64) (*spec.VersionedBeaconState, 
 }
 
 func GetTotalBalanceAndEffective(
-	validatorIndexes []uint64,
+	activeValidatorIndexes []uint64,
 	beaconState *spec.VersionedBeaconState) (*big.Int, *big.Int) {
 
 	totalBalances := big.NewInt(0).SetUint64(0)
@@ -277,7 +283,7 @@ func GetTotalBalanceAndEffective(
 	validators := GetValidators(beaconState)
 	balances := GetBalances(beaconState)
 
-	for _, valIdx := range validatorIndexes {
+	for _, valIdx := range activeValidatorIndexes {
 		// Skip if index is not present in the beacon state
 		if valIdx >= uint64(len(balances)) {
 			log.Warn("validator index goes beyond the beacon state indexes")
@@ -292,28 +298,46 @@ func GetTotalBalanceAndEffective(
 	return totalBalances, effectiveBalance
 }
 
+// Returns the indexes of the validator keys. Note that the indexes
+// may belong to active, inactive or even slashed keys.
 func GetIndexesFromKeys(
 	validatorKeys [][]byte,
 	valKeyToIndex map[string]uint64) []uint64 {
 
 	indexes := make([]uint64, 0)
 
-	// TODO: Note that this also return slashed and exited indexes
-
 	// Use global prepopulated map
 	for _, key := range validatorKeys {
-		// TODO: Test this. if a validatorKeys is not present, dont add garbage to the indexes list
-		// I think the bug was here.
 		if valIndex, ok := valKeyToIndex[hex.EncodeToString(key)]; ok {
 			indexes = append(indexes, valIndex)
+		} else {
+			log.Warn("Index for key: ", hex.EncodeToString(key), " not found in beacon state")
 		}
 	}
 
 	return indexes
 }
 
-func GetValidatorsWithLessBalance(
+func GetActiveIndexes(
 	validatorIndexes []uint64,
+	beaconState *spec.VersionedBeaconState) []uint64 {
+
+	activeIndexes := make([]uint64, 0)
+
+	validators := GetValidators(beaconState)
+	beaconStateEpoch := GetSlot(beaconState) / 32
+
+	for _, valIdx := range validatorIndexes {
+		if beaconStateEpoch >= uint64(validators[valIdx].ActivationEpoch) {
+			activeIndexes = append(activeIndexes, valIdx)
+		}
+	}
+
+	return activeIndexes
+}
+
+func GetValidatorsWithLessBalance(
+	activeValidatorIndexes []uint64,
 	prevBeaconState *spec.VersionedBeaconState,
 	currentBeaconState *spec.VersionedBeaconState) ([]uint64, *big.Int, *big.Int, error) {
 
@@ -333,7 +357,7 @@ func GetValidatorsWithLessBalance(
 	earnedBalance := big.NewInt(0)
 	lostBalance := big.NewInt(0)
 
-	for _, valIdx := range validatorIndexes {
+	for _, valIdx := range activeValidatorIndexes {
 		// handle if there was a new validator index not register in the prev state
 		if valIdx >= uint64(len(prevBalances)) {
 			log.Warn("validator index goes beyond the beacon state indexes")
@@ -358,7 +382,7 @@ func GetValidatorsWithLessBalance(
 // See spec: from LSB to MSB: source, target, head.
 // https://github.com/ethereum/consensus-specs/blob/master/specs/altair/beacon-chain.md#participation-flag-indices
 func GetParticipation(
-	validatorIndexes []uint64,
+	activeValidatorIndexes []uint64,
 	beaconState *spec.VersionedBeaconState) (uint64, uint64, uint64, []uint64) {
 
 	indexesMissedAtt := make([]uint64, 0)
@@ -368,7 +392,7 @@ func GetParticipation(
 
 	var nIncorrectSource, nIncorrectTarget, nIncorrectHead uint64
 
-	for _, valIndx := range validatorIndexes {
+	for _, valIndx := range activeValidatorIndexes {
 		// Ignore slashed validators
 		if validators[valIndx].Slashed {
 			continue
@@ -399,10 +423,10 @@ func GetParticipation(
 
 /* TODO: Unused. Add support for Bellatrix
 func GetInactivityScores(
-	validatorIndexes []uint64,
+	activeValidatorIndexes []uint64,
 	beaconState *spec.VersionedBeaconState) []uint64 {
 	inactivityScores := make([]uint64, 0)
-	for _, valIdx := range validatorIndexes {
+	for _, valIdx := range activeValidatorIndexes {
 		inactivityScores = append(inactivityScores, beaconState.Altair.InactivityScores[valIdx])
 	}
 	return inactivityScores
