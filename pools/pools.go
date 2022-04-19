@@ -151,4 +151,7 @@ var PoolsAddresses = map[string][]string{
 	"whale10": {
 		"0x51226113a35a29cda0030ef221e90baef221278b",
 	},
+	"vitalik": {
+		"0x1db3439a222c519ab44bb1144fc28167b4fa6ee6",
+	},
 }
