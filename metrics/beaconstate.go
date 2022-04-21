@@ -110,9 +110,11 @@ func (p *BeaconState) Run() {
 		}
 
 		// General network metrics
-		// TODO: Sync committee
 		nOfSlashedValidators := 0
 		validators := GetValidators(currentBeaconState)
+
+		// Create a map to convert from key to index for quick access
+		valKeyToIndex := PopulateKeysToIndexesMap(currentBeaconState)
 
 		for _, val := range validators {
 			if val.Slashed {
@@ -125,6 +127,10 @@ func (p *BeaconState) Run() {
 			"Total Validators":         len(validators),
 			"Total Slashed Validators": nOfSlashedValidators,
 		}).Info("Network stats:")
+
+		// TODO: Move somewhere else
+		syncCommitteeKeys := BLSPubKeyToByte(GetCurrentSyncCommittee(currentBeaconState))
+		syncCommitteeIndexes := GetIndexesFromKeys(syncCommitteeKeys, valKeyToIndex)
 
 		for _, poolName := range p.poolNames {
 			var pubKeysDeposited [][]byte
@@ -158,7 +164,6 @@ func (p *BeaconState) Run() {
 				continue
 			}
 
-			valKeyToIndex := PopulateKeysToIndexesMap(currentBeaconState)
 			validatorIndexes := GetIndexesFromKeys(pubKeysDeposited, valKeyToIndex)
 			activeValidatorIndexes := GetActiveIndexes(validatorIndexes, currentBeaconState)
 
@@ -176,13 +181,32 @@ func (p *BeaconState) Run() {
 				continue
 			}
 
+			// TODO: Move somewhere else
+			// Sync committee information. For each pool, shows the validators part of the committee
+			poolSyncIndexes := GetValidatorsIn(syncCommitteeIndexes, activeValidatorIndexes)
+
+			log.Info("Pool: ", poolName, " sync committee validators ", poolSyncIndexes)
+
 			logMetrics(metrics, poolName)
-			setPrometheusMetrics(metrics, poolName)
+			setPrometheusMetrics(metrics, poolSyncIndexes, poolName)
 		}
 
 		prevBeaconState = currentBeaconState
 		prevEpoch = currentEpoch
 	}
+}
+
+func GetValidatorsIn(allSyncCommitteeIndexes []uint64, poolValidatorIndexes []uint64) []uint64 {
+	poolCommmitteeIndexes := make([]uint64, 0)
+	for i := range allSyncCommitteeIndexes {
+		for j := range poolValidatorIndexes {
+			if allSyncCommitteeIndexes[i] == poolValidatorIndexes[j] {
+				poolCommmitteeIndexes = append(poolCommmitteeIndexes, allSyncCommitteeIndexes[i])
+				break
+			}
+		}
+	}
+	return poolCommmitteeIndexes
 }
 
 func PopulateKeysToIndexesMap(beaconState *spec.VersionedBeaconState) map[string]uint64 {
@@ -192,6 +216,15 @@ func PopulateKeysToIndexesMap(beaconState *spec.VersionedBeaconState) map[string
 		valKeyToIndex[hex.EncodeToString(beaconStateKey.PublicKey[:])] = uint64(index)
 	}
 	return valKeyToIndex
+}
+
+// TODO: Move to utils
+func BLSPubKeyToByte(blsKeys []phase0.BLSPubKey) [][]byte {
+	keys := make([][]byte, 0)
+	for i := range blsKeys {
+		keys = append(keys, blsKeys[i][:])
+	}
+	return keys
 }
 
 // Make sure the validator indexes are active
@@ -468,6 +501,7 @@ func logMetrics(
 
 func setPrometheusMetrics(
 	metrics schemas.ValidatorPerformanceMetrics,
+	numSyncValidators []uint64,
 	poolName string) {
 
 	prometheus.TotalBalanceMetrics.WithLabelValues(
@@ -496,6 +530,12 @@ func setPrometheusMetrics(
 
 	prometheus.CumulativeConsensusRewards.WithLabelValues(
 		poolName).Set(float64(metrics.TotalRewards.Int64()))
+
+	prometheus.NumOfSyncCommitteeValidators.WithLabelValues(
+		poolName).Set(float64(len(numSyncValidators)))
+
+	// TODO: Add the indexes of the sync committees
+	// TODO: Add if the sync committees are fulfilling their duties or not
 
 	// TODO: Remove this from here and from prometheus
 	//prometheus.NOfTotalVotes.Set(float64(metrics.NOfTotalVotes))
@@ -573,4 +613,16 @@ func GetSlot(beaconState *spec.VersionedBeaconState) uint64 {
 		log.Fatal("Beacon state was empty")
 	}
 	return slot
+}
+
+func GetCurrentSyncCommittee(beaconState *spec.VersionedBeaconState) []phase0.BLSPubKey {
+	var pubKeys []phase0.BLSPubKey
+	if beaconState.Altair != nil {
+		pubKeys = beaconState.Altair.CurrentSyncCommittee.Pubkeys
+	} else if beaconState.Bellatrix != nil {
+		pubKeys = beaconState.Bellatrix.CurrentSyncCommittee.Pubkeys
+	} else {
+		log.Fatal("Beacon state was empty")
+	}
+	return pubKeys
 }

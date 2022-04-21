@@ -367,6 +367,17 @@ var (
 		},
 	)
 
+	NumOfSyncCommitteeValidators = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "num_sync_committee_validators",
+			Help:      "Number of sync committee validators",
+		},
+		[]string{
+			"pool",
+		},
+	)
+
 	TotalDepositedValidators = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: "validators",
