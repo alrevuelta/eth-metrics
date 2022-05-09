@@ -654,6 +654,9 @@ var PoolsAddresses = map[string][]string{
 	"nimbus-team": {
 		"0x5efaefd5f8a42723bb095194c9202bf2b83d8eb6",
 	},
+	"0xCB2A665406": {
+		"0xCB2A66540680c344bab5f818d68c3e4B9D57363B",
+	},
 }
 
 func ReadCustomValidatorsFile(validatorKeysFile string) (validatorKeys [][]byte, err error) {
