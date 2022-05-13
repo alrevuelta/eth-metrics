@@ -80,10 +80,8 @@ func (p *BeaconState) Run() {
 			continue
 		}
 
-		// The closer to head, the more risk of having inaccurate data due
-		// to being in a fork. Metrics could also be fetched on finalized epochs.
-		// TODO: Don't hardcode 32
-		currentEpoch := uint64(headSlot.HeadSlot)/uint64(32) - 3
+		// Run the metrics one epoch behind head
+		currentEpoch := uint64(headSlot.HeadSlot)/uint64(32) - 1
 
 		if prevEpoch >= currentEpoch {
 			// do nothing
@@ -170,6 +168,9 @@ func (p *BeaconState) Run() {
 			log.Info("The pool:", poolName, " contains ", len(validatorIndexes), " validators detected in the beacon state")
 			log.Info("The pool:", poolName, " contains ", len(activeValidatorIndexes), " active validators detected in the beacon state")
 			//log.Info(validatorIndexes)
+
+			// Temporal to debug:
+			ParticipationDebug(activeValidatorIndexes, currentBeaconState)
 
 			metrics, err := PopulateParticipationAndBalance(
 				activeValidatorIndexes,
@@ -296,7 +297,12 @@ func PopulateParticipationAndBalance(
 
 func (p *BeaconState) GetBeaconState(epoch uint64) (*spec.VersionedBeaconState, error) {
 	log.Info("Fetching beacon state for epoch: ", epoch)
-	slotStr := strconv.FormatUint(epoch*32, 10)
+	// Its important to get the beacon state from the last slot of each epoch
+	// to allow all attestations to be included
+	// If epoch=1, slot = epoch*32 = 32, which is the first slot of epoch 1
+	// but we want to run the metrics on the last slot, so -1
+	// goes to the last slot of the previous epoch
+	slotStr := strconv.FormatUint(epoch*32-1, 10)
 	beaconState, err := p.httpClient.BeaconState(
 		context.Background(),
 		slotStr)
@@ -412,6 +418,49 @@ func GetValidatorsWithLessBalance(
 	return indexesWithLessBalance, earnedBalance, lostBalance, nil
 }
 
+func ParticipationDebug(
+	activeValidatorIndexes []uint64,
+	beaconState *spec.VersionedBeaconState) {
+
+	validators := GetValidators(beaconState)
+	previousEpochParticipation := GetPreviousEpochParticipation(beaconState)
+
+	nActiveValidators := uint64(0)
+
+	beaconStateEpoch := GetSlot(beaconState) / 32
+
+	var nCorrectSource, nCorrectTarget, nCorrectHead uint64
+
+	for _, valIndx := range activeValidatorIndexes {
+		// Ignore slashed validators
+		if validators[valIndx].Slashed {
+			continue
+		}
+
+		// Ignore not yet active validators
+		if uint64(validators[valIndx].ActivationEpoch) > beaconStateEpoch {
+			continue
+		}
+
+		epochAttestations := previousEpochParticipation[valIndx]
+		if isBitSet(uint8(epochAttestations), 0) {
+			nCorrectSource++
+		}
+		if isBitSet(uint8(epochAttestations), 1) {
+			nCorrectTarget++
+		}
+		if isBitSet(uint8(epochAttestations), 2) {
+			nCorrectHead++
+		}
+		nActiveValidators++
+	}
+
+	log.Info("Active validators", nActiveValidators)
+	log.Info("Correct Source", (float64(nCorrectSource) / float64(nActiveValidators) * 100))
+	log.Info("Correct Target", (float64(nCorrectTarget) / float64(nActiveValidators) * 100))
+	log.Info("Correct Head", (float64(nCorrectHead) / float64(nActiveValidators) * 100))
+}
+
 // See spec: from LSB to MSB: source, target, head.
 // https://github.com/ethereum/consensus-specs/blob/master/specs/altair/beacon-chain.md#participation-flag-indices
 func GetParticipation(
@@ -440,6 +489,7 @@ func GetParticipation(
 
 		// TODO: Dont know why but Infura returns 0 for all CurrentEpochAttestations
 		epochAttestations := previousEpochParticipation[valIndx]
+		// TODO: Count if bit is set instead if not set. Easier.
 		if !isBitSet(uint8(epochAttestations), 0) {
 			nIncorrectSource++
 			indexesMissedAtt = append(indexesMissedAtt, valIndx)
