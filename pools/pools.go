@@ -566,7 +566,7 @@ var PoolsAddresses = map[string][]string{
 		"0xaa5104d696a3c8ab61331c87d9294c0ae1f5aa51",
 		"0x0194512e77d798E4871973d9cB9D7DDFC0fFd801",
 	},
-	"stkr": {
+	"ankr": {
 		"0x4069d8a3de3a72eca86ca5e0a4b94619085e7362",
 	},
 	"bitfinex": {
@@ -600,43 +600,43 @@ var PoolsAddresses = map[string][]string{
 		"0xb2c43455ee556dea95c0599b0d3f7d0abbf32fdb",
 		"0x197939c1ca20c2b506d6811d8b6cdb3394471074",
 	},
-	"defi1": {
+	"0x234ee9e35f": {
 		"0x234ee9e35f8e9749a002fc42970d570db716453b",
 	},
-	"defi2": {
+	"0x711cd20bf6": {
 		"0x711cd20bf6b436ced327a8c65a14491aa04c2ca1",
 	},
-	"defi3": {
+	"0xfb62633309": {
 		"0xfb626333099a91ab677bcd5e9c71bc4dbe0238a8",
 	},
-	"whale1": {
+	"0x3b436fb33b": {
 		"0x3b436fb33b79a3a754b0242a48a3b3aec1e35ad2",
 	},
-	"whale2": {
+	"0xa8582b5a0f": {
 		"0xa8582b5a0f615bc21d7780618557042be60b32ed",
 	},
-	"whale3": {
+	"0xa3ae668b62": {
 		"0xa3ae668b6239fa3eb1dc26daabb03f244d0259f0",
 	},
-	"whale4": {
+	"0x152c77c113": {
 		"0x152c77c1131eb171b5547f2c4c33ff2c496984f1",
 	},
-	"whale5": {
+	"0x38bc2db273": {
 		"0x38bc2db2732a7efa43c89160118268ef0d15163d",
 	},
-	"whale6": {
+	"0x0ec24e397a": {
 		"0x0ec24e397a3592da41264209cc0582bc3bbc9776",
 	},
-	"whale7": {
+	"0x46d24de64a": {
 		"0x46d24de64abe6a7ab6afda0389074ae8c7ed5d0f",
 	},
-	"whale8": {
+	"0x6aa35f8ae7": {
 		"0x6aa35f8ae7c9aceb2a541b6576577fdcdae73100",
 	},
-	"whale9": {
+	"0x27d71a464d": {
 		"0x27d71a464da941118a4e056d0737274aa308a923",
 	},
-	"whale10": {
+	"0x51226113a3": {
 		"0x51226113a35a29cda0030ef221e90baef221278b",
 	},
 	"vitalik": {
@@ -654,8 +654,8 @@ var PoolsAddresses = map[string][]string{
 	"nimbus-team": {
 		"0x5efaefd5f8a42723bb095194c9202bf2b83d8eb6",
 	},
-	"0xCB2A665406": {
-		"0xCB2A66540680c344bab5f818d68c3e4B9D57363B",
+	"0xcb2a665406": {
+		"0xcb2a66540680c344bab5f818d68c3e4b9d57363b",
 	},
 }
 
