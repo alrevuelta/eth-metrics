@@ -657,6 +657,39 @@ var PoolsAddresses = map[string][]string{
 	"0xcb2a665406": {
 		"0xcb2a66540680c344bab5f818d68c3e4b9d57363b",
 	},
+	"bitpie": {
+		"0xa8582b5a0f615bc21d7780618557042be60b32ed",
+	},
+	"superphiz.eth": {
+		"0x399e0Ae23663F27181Ebb4e66Ec504b3AAB25541",
+	},
+	//"danielwang.eth": { i only detect 13, beaconchain thousands
+	//	"0x69AA0361Dbb0527d4F1e5312403Bd41788fe61Fe",
+	//},
+	//"wangdong.eth": { i only detect 15, beaconchain thousands
+	//	"0x4757D97449acA795510b9f3152C6a9019A3545c3",
+	//},
+	//"tgerring.eth": { no keys
+	//	"0x1B63142628311395CEaFeEa5667e7C9026c862Ca",
+	//},
+	//"nemorino.eth": { no keys
+	//	"0x8AeCc5526F92A46718f8E68516D22038D8670E0D",
+	//},
+	"conurtrol.eth": {
+		"0x738696765dbcb15bbab8dc7b2255d5d30374e592",
+	},
+	"was.eth": {
+		"0x010af29077a8520cc3f55be2031d7e37808ba137",
+	},
+	//"ghash.eth": {
+	//	"0x3d5569d3e5f4ebd45a1fb243d479d174c83f583f",
+	//},
+	//"pogiboy.eth": { no keys
+	//	"0x70d8c48069366aa876c8fbea70da7e303d8a6296",
+	//},
+	//"wolverine.eth": { no keys
+	//	"0xd9a657acb3960db92aaaa32942019bd3c473fccb",
+	//},
 }
 
 func ReadCustomValidatorsFile(validatorKeysFile string) (validatorKeys [][]byte, err error) {
