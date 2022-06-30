@@ -5,15 +5,13 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
-	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
 
 	//"github.com/alrevuelta/eth-pools-metrics/prometheus"
-	"github.com/alrevuelta/eth-pools-metrics/pools"
+
 	"github.com/alrevuelta/eth-pools-metrics/postgresql"
 	"github.com/alrevuelta/eth-pools-metrics/prometheus"
 	"github.com/alrevuelta/eth-pools-metrics/schemas"
@@ -56,145 +54,61 @@ func NewBeaconState(
 	return &BeaconState{
 		httpClient:    httpClient,
 		eth2Endpoint:  eth2Endpoint,
-		pg:            pg,
+		pg:            pg, //TODO: Remove from here
 		fromAddresses: fromAddresses,
 		poolNames:     poolNames,
 		eth1Endpoint:  eth1Endpoint,
 	}, nil
 }
 
-func (p *BeaconState) Run() {
-	var prevEpoch uint64 = uint64(0)
-	var prevBeaconState *spec.VersionedBeaconState = nil
+func (p *BeaconState) Run(
+	validatorKeys [][]byte,
+	poolName string,
+	currentBeaconState *spec.VersionedBeaconState,
+	prevBeaconState *spec.VersionedBeaconState) error {
 
-	for {
-		// Before doing anything, check if we are in the next epoch
-		headSlot, err := p.httpClient.NodeSyncing(context.Background())
-		if err != nil {
-			log.Error("Could not get node sync status:", err)
-			continue
-		}
-
-		if headSlot.IsSyncing {
-			log.Error("Node is not in sync")
-			continue
-		}
-
-		// Run the metrics one epoch behind head
-		currentEpoch := uint64(headSlot.HeadSlot)/uint64(32) - 1
-
-		if prevEpoch >= currentEpoch {
-			// do nothing
-			time.Sleep(5 * time.Second)
-			continue
-		}
-
-		// TODO: Retry once if fails
-		currentBeaconState, err := p.GetBeaconState(currentEpoch)
-		if err != nil {
-			prevBeaconState = nil
-			log.Error("Error fetching beacon state:", err)
-			continue
-		}
-
-		// if no prev beacon state is known, fetch it
-		if prevBeaconState == nil {
-			prevBeaconState, err = p.GetBeaconState(currentEpoch - 1)
-			// TODO: Retry
-			if err != nil {
-				log.Error(err)
-				continue
-			}
-		}
-
-		// General network metrics
-		nOfSlashedValidators := 0
-		validators := GetValidators(currentBeaconState)
-
-		// Create a map to convert from key to index for quick access
-		valKeyToIndex := PopulateKeysToIndexesMap(currentBeaconState)
-
-		for _, val := range validators {
-			if val.Slashed {
-				nOfSlashedValidators++
-			}
-		}
-		prometheus.TotalDepositedValidators.Set(float64(len(validators)))
-		prometheus.TotalSlashedValidators.Set(float64(nOfSlashedValidators))
-		log.WithFields(log.Fields{
-			"Total Validators":         len(validators),
-			"Total Slashed Validators": nOfSlashedValidators,
-		}).Info("Network stats:")
-
-		// TODO: Move somewhere else
-		syncCommitteeKeys := BLSPubKeyToByte(GetCurrentSyncCommittee(currentBeaconState))
-		syncCommitteeIndexes := GetIndexesFromKeys(syncCommitteeKeys, valKeyToIndex)
-
-		for _, poolName := range p.poolNames {
-			var pubKeysDeposited [][]byte
-
-			// Special case: hardcoded keys
-			if strings.HasSuffix(poolName, ".txt") {
-				pubKeysDeposited, err = pools.ReadCustomValidatorsFile(poolName)
-				if err != nil {
-					log.Fatal(err)
-				}
-				// trim the file path and extension
-				poolName = filepath.Base(poolName)
-				poolName = strings.TrimSuffix(poolName, filepath.Ext(poolName))
-			} else if poolName == "rocketpool" {
-				pubKeysDeposited = pools.RocketPoolKeys
-				// From known from-addresses
-			} else {
-				poolAddressList := pools.PoolsAddresses[poolName]
-				log.Info("The pool:", poolName, " from-address are: ", poolAddressList)
-				pubKeysDeposited, err = p.pg.GetKeysByFromAddresses(poolAddressList)
-				if err != nil {
-					log.Error(err)
-					continue
-				}
-			}
-
-			log.Info("The pool:", poolName, " contains ", len(pubKeysDeposited), " keys (may be hardcoded)")
-
-			if len(pubKeysDeposited) == 0 {
-				log.Warn("No deposited keys for: ", poolName, ", skipping")
-				continue
-			}
-
-			validatorIndexes := GetIndexesFromKeys(pubKeysDeposited, valKeyToIndex)
-			activeValidatorIndexes := GetActiveIndexes(validatorIndexes, currentBeaconState)
-
-			log.Info("The pool:", poolName, " contains ", len(validatorIndexes), " validators detected in the beacon state")
-			log.Info("The pool:", poolName, " contains ", len(activeValidatorIndexes), " active validators detected in the beacon state")
-			//log.Info(validatorIndexes)
-
-			// Temporal to debug:
-			ParticipationDebug(activeValidatorIndexes, currentBeaconState)
-
-			metrics, err := PopulateParticipationAndBalance(
-				activeValidatorIndexes,
-				currentBeaconState,
-				prevBeaconState)
-
-			if err != nil {
-				log.Error(err)
-				continue
-			}
-
-			// TODO: Move somewhere else
-			// Sync committee information. For each pool, shows the validators part of the committee
-			poolSyncIndexes := GetValidatorsIn(syncCommitteeIndexes, activeValidatorIndexes)
-
-			log.Info("Pool: ", poolName, " sync committee validators ", poolSyncIndexes)
-
-			logMetrics(metrics, poolName)
-			setPrometheusMetrics(metrics, poolSyncIndexes, poolName)
-		}
-
-		prevBeaconState = currentBeaconState
-		prevEpoch = currentEpoch
+	if currentBeaconState == nil || prevBeaconState == nil {
+		// TODO: Error?
+		return errors.New("TODO:")
 	}
+	if len(validatorKeys) == 0 {
+		// TODO: Error?
+		return errors.New("TODO:")
+	}
+
+	// TODO: This could be global
+	valKeyToIndex := PopulateKeysToIndexesMap(currentBeaconState)
+
+	validatorIndexes := GetIndexesFromKeys(validatorKeys, valKeyToIndex)
+	activeValidatorIndexes := GetActiveIndexes(validatorIndexes, currentBeaconState)
+
+	metrics, err := PopulateParticipationAndBalance(
+		activeValidatorIndexes,
+		currentBeaconState,
+		prevBeaconState)
+
+	if err != nil {
+		return errors.Wrap(err, "TODO")
+	}
+
+	syncCommitteeKeys := BLSPubKeyToByte(GetCurrentSyncCommittee(currentBeaconState))
+	syncCommitteeIndexes := GetIndexesFromKeys(syncCommitteeKeys, valKeyToIndex)
+	poolSyncIndexes := GetValidatorsIn(syncCommitteeIndexes, activeValidatorIndexes)
+
+	// Temporal to debug:
+	ParticipationDebug(activeValidatorIndexes, currentBeaconState)
+
+	// TODO: Move network stats out
+	Slashings(currentBeaconState)
+
+	log.Info("The pool:", poolName, " contains ", len(validatorKeys), " keys (may be hardcoded)")
+	log.Info("The pool:", poolName, " contains ", len(validatorIndexes), " validators detected in the beacon state")
+	log.Info("The pool:", poolName, " contains ", len(activeValidatorIndexes), " active validators detected in the beacon state")
+	log.Info("Pool: ", poolName, " sync committee validators ", poolSyncIndexes)
+
+	logMetrics(metrics, poolName)
+	setPrometheusMetrics(metrics, poolSyncIndexes, poolName)
+	return nil
 }
 
 func GetValidatorsIn(allSyncCommitteeIndexes []uint64, poolValidatorIndexes []uint64) []uint64 {
@@ -461,6 +375,26 @@ func ParticipationDebug(
 	log.Info("Correct Head", (float64(nCorrectHead) / float64(nActiveValidators) * 100))
 }
 
+func Slashings(beaconState *spec.VersionedBeaconState) {
+	nOfSlashedValidators := 0
+	validators := GetValidators(beaconState)
+
+	// Create a map to convert from key to index for quick access
+	//valKeyToIndex := PopulateKeysToIndexesMap(beaconState)
+
+	for _, val := range validators {
+		if val.Slashed {
+			nOfSlashedValidators++
+		}
+	}
+	prometheus.TotalDepositedValidators.Set(float64(len(validators)))
+	prometheus.TotalSlashedValidators.Set(float64(nOfSlashedValidators))
+	log.WithFields(log.Fields{
+		"Total Validators":         len(validators),
+		"Total Slashed Validators": nOfSlashedValidators,
+	}).Info("Network stats:")
+}
+
 // See spec: from LSB to MSB: source, target, head.
 // https://github.com/ethereum/consensus-specs/blob/master/specs/altair/beacon-chain.md#participation-flag-indices
 func GetParticipation(
@@ -533,9 +467,9 @@ func logMetrics(
 		"nOfIncorrectTarget":          metrics.NOfIncorrectTarget,
 		"nOfIncorrectHead":            metrics.NOfIncorrectHead,
 		"nOfValidators":               metrics.NOfValidatingKeys,
-		"PercentIncorrectSource":      (float64(metrics.NOfIncorrectSource) / float64(metrics.NOfTotalVotes)) * 100,
-		"PercentIncorrectTarget":      (float64(metrics.NOfIncorrectTarget) / float64(metrics.NOfTotalVotes)) * 100,
-		"PercentIncorrectHead":        (float64(metrics.NOfIncorrectHead) / float64(metrics.NOfTotalVotes)) * 100,
+		"PercentIncorrectSource":      (float64(metrics.NOfIncorrectSource) / float64(metrics.NOfValidatingKeys)) * 100,
+		"PercentIncorrectTarget":      (float64(metrics.NOfIncorrectTarget) / float64(metrics.NOfValidatingKeys)) * 100,
+		"PercentIncorrectHead":        (float64(metrics.NOfIncorrectHead) / float64(metrics.NOfValidatingKeys)) * 100,
 		"nOfValsWithDecreasedBalance": len(metrics.IndexesLessBalance),
 		"balanceDecreasedPercent":     balanceDecreasedPercent,
 		"epochEarnedBalance":          metrics.EarnedBalance,
