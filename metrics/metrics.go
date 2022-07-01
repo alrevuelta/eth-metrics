@@ -43,7 +43,8 @@ type Metrics struct {
 
 	httpClient *http.Service
 
-	beaconState *BeaconState
+	beaconState    *BeaconState
+	proposalDuties *ProposalDuties
 
 	// Slot and epoch and its raw data
 	// TODO: Remove, each metric task has its pace
@@ -130,6 +131,18 @@ func (a *Metrics) Run() {
 		// TODO: Add return here.
 	}
 	a.beaconState = bc
+
+	pd, err := NewProposalDuties(
+		a.eth1Address,
+		a.eth2Address,
+		a.fromAddrList,
+		a.PoolNames)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	a.proposalDuties = pd
+
 	for _, poolName := range a.PoolNames {
 		if poolName == "rocketpool" {
 			go pools.RocketPoolFetcher(a.eth1Address)
@@ -164,6 +177,27 @@ func (a *Metrics) Loop() {
 			continue
 		}
 
+		// Fetch proposal duties, meaning who shall propose each block within this epoch
+		duties, err := a.proposalDuties.GetProposalDuties(currentEpoch)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+
+		// Fetch who actually proposed the blocks in this epoch
+		proposed, err := a.proposalDuties.GetProposedBlocks(currentEpoch)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+
+		// Summarize duties + proposed in a struct
+		proposalMetrics, err := a.proposalDuties.GetProposalMetrics(duties, proposed)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+
 		currentBeaconState, err := a.beaconState.GetBeaconState(currentEpoch)
 		if err != nil {
 			prevBeaconState = nil
@@ -180,6 +214,9 @@ func (a *Metrics) Loop() {
 			}
 		}
 
+		// Map to quickly convert public keys to index
+		valKeyToIndex := PopulateKeysToIndexesMap(currentBeaconState)
+
 		// Iterate all pools and calculate metrics using the fetched data
 		for _, poolName := range a.PoolNames {
 			poolName, pubKeys, err := a.GetValidatorKeys(poolName)
@@ -187,7 +224,14 @@ func (a *Metrics) Loop() {
 				log.Error("TODO", err)
 				continue
 			}
-			a.beaconState.Run(pubKeys, poolName, currentBeaconState, prevBeaconState)
+
+			validatorIndexes := GetIndexesFromKeys(pubKeys, valKeyToIndex)
+
+			// TODO Rename this
+			a.beaconState.Run(pubKeys, poolName, currentBeaconState, prevBeaconState, valKeyToIndex)
+
+			err = a.proposalDuties.RunProposalMetrics(validatorIndexes, poolName, &proposalMetrics)
+			_ = err
 		}
 
 		prevBeaconState = currentBeaconState

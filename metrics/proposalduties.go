@@ -2,20 +2,264 @@ package metrics
 
 import (
 	"context"
-	"fmt"
-	"github.com/alrevuelta/eth-pools-metrics/prometheus"
-	"github.com/alrevuelta/eth-pools-metrics/schemas"
-	"github.com/pkg/errors"
-	ethTypes "github.com/prysmaticlabs/eth2-types"
-	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
-	log "github.com/sirupsen/logrus"
-	"runtime"
+	"strconv"
 	"time"
+
+	"github.com/alrevuelta/eth-pools-metrics/prometheus"
+
+	"github.com/alrevuelta/eth-pools-metrics/schemas"
+	api "github.com/attestantio/go-eth2-client/api/v1"
+	"github.com/attestantio/go-eth2-client/http"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
+	log "github.com/sirupsen/logrus"
 )
 
-// Continuously reports scheduled and fulfilled duties for the validators for
-// the latest finalized epoch
-func (a *Metrics) StreamDuties() {
+type ProposalDuties struct {
+	httpClient    *http.Service
+	eth1Endpoint  string
+	eth2Endpoint  string
+	fromAddresses []string
+	poolNames     []string
+}
+
+func NewProposalDuties(
+	eth1Endpoint string,
+	eth2Endpoint string,
+	fromAddresses []string,
+	poolNames []string) (*ProposalDuties, error) {
+
+	client, err := http.New(context.Background(),
+		http.WithTimeout(60*time.Second),
+		http.WithAddress(eth2Endpoint),
+		http.WithLogLevel(zerolog.WarnLevel),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	httpClient := client.(*http.Service)
+
+	return &ProposalDuties{
+		httpClient:    httpClient,
+		eth2Endpoint:  eth2Endpoint,
+		fromAddresses: fromAddresses,
+		poolNames:     poolNames,
+		eth1Endpoint:  eth1Endpoint,
+	}, nil
+}
+
+func (p *ProposalDuties) RunProposalMetrics(
+	activeKeys []uint64,
+	poolName string,
+	metrics *schemas.ProposalDutiesMetrics) error {
+
+	poolProposals := getPoolProposalDuties(
+		metrics,
+		poolName,
+		activeKeys)
+
+	logProposalDuties(poolProposals, poolName)
+	setPrometheusProposalDuties(poolProposals, poolName)
+	return nil
+
+}
+
+func (p *ProposalDuties) GetProposalDuties(epoch uint64) ([]*api.ProposerDuty, error) {
+	// Empty indexes to force fetching all duties
+	indexes := make([]phase0.ValidatorIndex, 0)
+
+	duties, err := p.httpClient.ProposerDuties(
+		context.Background(),
+		phase0.Epoch(epoch),
+		indexes)
+
+	if err != nil {
+		return make([]*api.ProposerDuty, 0), err
+	}
+
+	return duties, nil
+}
+
+func (p *ProposalDuties) GetProposedBlocks(epoch uint64) ([]*api.BeaconBlockHeader, error) {
+
+	epochBlockHeaders := make([]*api.BeaconBlockHeader, 0)
+	slotsInEpoch := uint64(32)
+
+	slotWithinEpoch := uint64(0)
+	for slotWithinEpoch < slotsInEpoch {
+		epochStr := strconv.FormatUint(epoch*slotsInEpoch+slotWithinEpoch, 10)
+
+		blockHeader, err := p.httpClient.BeaconBlockHeader(context.Background(), epochStr)
+		if err != nil {
+			return epochBlockHeaders, err
+		}
+		epochBlockHeaders = append(epochBlockHeaders, blockHeader)
+		slotWithinEpoch++
+	}
+
+	return epochBlockHeaders, nil
+}
+
+func (p *ProposalDuties) GetProposalMetrics(
+	proposalDuties []*api.ProposerDuty,
+	proposedBlocks []*api.BeaconBlockHeader) (schemas.ProposalDutiesMetrics, error) {
+
+	proposalMetrics := schemas.ProposalDutiesMetrics{
+		Epoch:     0,
+		Scheduled: make([]schemas.Duty, 0),
+		Proposed:  make([]schemas.Duty, 0),
+		Missed:    make([]schemas.Duty, 0),
+	}
+
+	if proposalDuties[0].Slot != proposedBlocks[0].Header.Message.Slot {
+		return proposalMetrics, errors.New("duties and proposals contains different slots")
+	}
+	if len(proposalDuties) != len(proposedBlocks) {
+		return proposalMetrics, errors.New("duties and blocks have different sizes")
+	}
+
+	proposalMetrics.Epoch = uint64(proposalDuties[0].Slot) / 32
+
+	for _, duty := range proposalDuties {
+		proposalMetrics.Scheduled = append(
+			proposalMetrics.Scheduled,
+			schemas.Duty{
+				ValIndex: uint64(duty.ValidatorIndex),
+				Slot:     uint64(duty.Slot),
+				Graffiti: "NA",
+			})
+	}
+
+	for _, block := range proposedBlocks {
+		proposalMetrics.Proposed = append(
+			proposalMetrics.Proposed,
+			schemas.Duty{
+				ValIndex: uint64(block.Header.Message.ProposerIndex),
+				Slot:     uint64(block.Header.Message.Slot),
+				Graffiti: "TODO",
+			})
+
+	}
+
+	return proposalMetrics, nil
+}
+
+func getMissedDuties(scheduled []schemas.Duty, proposed []schemas.Duty) []schemas.Duty {
+	missed := make([]schemas.Duty, 0)
+
+	for _, s := range scheduled {
+		found := false
+		for _, p := range proposed {
+			if s.Slot == p.Slot && s.ValIndex == p.ValIndex {
+				found = true
+				break
+			}
+		}
+		if found == false {
+			missed = append(missed, s)
+		}
+	}
+
+	return missed
+}
+
+// TODO: This is very inefficient
+func getPoolProposalDuties(
+	metrics *schemas.ProposalDutiesMetrics,
+	poolName string,
+	activeValidatorIndexes []uint64) *schemas.ProposalDutiesMetrics {
+
+	poolDuties := schemas.ProposalDutiesMetrics{
+		Epoch:     metrics.Epoch,
+		Scheduled: make([]schemas.Duty, 0),
+		Proposed:  make([]schemas.Duty, 0),
+		Missed:    make([]schemas.Duty, 0),
+	}
+
+	// Check if this pool has any assigned proposal duties
+	for i := range metrics.Scheduled {
+		if IsValidatorIn(metrics.Scheduled[i].ValIndex, activeValidatorIndexes) {
+			poolDuties.Scheduled = append(poolDuties.Scheduled, metrics.Scheduled[i])
+		}
+		if IsValidatorIn(metrics.Proposed[i].ValIndex, activeValidatorIndexes) {
+			poolDuties.Proposed = append(poolDuties.Proposed, metrics.Proposed[i])
+		}
+	}
+
+	poolDuties.Missed = getMissedDuties(poolDuties.Scheduled, poolDuties.Proposed)
+
+	return &poolDuties
+}
+
+func logProposalDuties(
+	poolDuties *schemas.ProposalDutiesMetrics,
+	poolName string) {
+
+	for _, d := range poolDuties.Scheduled {
+		log.WithFields(log.Fields{
+			"PoolName":       poolName,
+			"ValIndex":       d.ValIndex,
+			"Slot":           d.Slot,
+			"Epoch":          poolDuties.Epoch,
+			"TotalScheduled": len(poolDuties.Scheduled),
+		}).Info("Scheduled Duty")
+	}
+
+	for _, d := range poolDuties.Proposed {
+		log.WithFields(log.Fields{
+			"PoolName":      poolName,
+			"ValIndex":      d.ValIndex,
+			"Slot":          d.Slot,
+			"Epoch":         poolDuties.Epoch,
+			"Graffiti":      d.Graffiti,
+			"TotalProposed": len(poolDuties.Proposed),
+		}).Info("Proposed Duty")
+	}
+
+	for _, d := range poolDuties.Missed {
+		log.WithFields(log.Fields{
+			"PoolName":    poolName,
+			"ValIndex":    d.ValIndex,
+			"Slot":        d.Slot,
+			"Epoch":       poolDuties.Epoch,
+			"TotalMissed": len(poolDuties.Missed),
+		}).Info("Missed Duty")
+	}
+}
+
+func setPrometheusProposalDuties(
+	metrics *schemas.ProposalDutiesMetrics,
+	poolName string) {
+
+	prometheus.NOfProposedBlocks.WithLabelValues(
+		poolName).Set(float64(len(metrics.Proposed)))
+
+	prometheus.NOfMissedBlocks.WithLabelValues(
+		poolName).Set(float64(len(metrics.Missed)))
+
+	for _, d := range metrics.Proposed {
+		_ = d
+		/* TODO: Not sure, add pool label
+		prometheus.ProposedBlocks.WithLabelValues(
+			UToStr(metrics.Epoch),
+			UToStr(d.ValIndex)).Inc()
+		*/
+	}
+
+	for _, d := range metrics.Missed {
+		_ = d
+		/* TODO: Not sure, add pool label
+		prometheus.MissedBlocks.WithLabelValues(
+			UToStr(metrics.Epoch),
+			UToStr(d.ValIndex)).Inc()
+		*/
+	}
+}
+
+/*
+func (a *Metrics) RunProposalMetrics() {
 	lastEpoch := uint64(0)
 	for {
 		if a.validatingKeys == nil {
@@ -51,53 +295,10 @@ func (a *Metrics) StreamDuties() {
 		runtime.GC()
 	}
 }
+*/
 
-func logProposalDuties(metrics *schemas.ProposalDutiesMetrics) {
-	for _, d := range metrics.Scheduled {
-		log.WithFields(log.Fields{
-			"ValIndex":       d.ValIndex,
-			"Slot":           d.Slot,
-			"Epoch":          metrics.Epoch,
-			"TotalScheduled": len(metrics.Scheduled),
-		}).Info("Scheduled Duty")
-	}
+/*
 
-	for _, d := range metrics.Proposed {
-		log.WithFields(log.Fields{
-			"ValIndex":      d.ValIndex,
-			"Slot":          d.Slot,
-			"Epoch":         metrics.Epoch,
-			"Graffiti":      d.Graffiti,
-			"TotalProposed": len(metrics.Proposed),
-		}).Info("Proposed Duty")
-	}
-
-	for _, d := range metrics.Missed {
-		log.WithFields(log.Fields{
-			"ValIndex":    d.ValIndex,
-			"Slot":        d.Slot,
-			"Epoch":       metrics.Epoch,
-			"TotalMissed": len(metrics.Missed),
-		}).Info("Missed Duty")
-	}
-}
-
-func setPrometheusProposalDuties(metrics *schemas.ProposalDutiesMetrics) {
-	prometheus.NOfScheduledBlocks.Set(float64(len(metrics.Scheduled)))
-	prometheus.NOfProposedBlocks.Set(float64(len(metrics.Proposed)))
-
-	for _, d := range metrics.Proposed {
-		prometheus.ProposedBlocks.WithLabelValues(
-			UToStr(metrics.Epoch),
-			UToStr(d.ValIndex)).Inc()
-	}
-
-	for _, d := range metrics.Missed {
-		prometheus.MissedBlocks.WithLabelValues(
-			UToStr(metrics.Epoch),
-			UToStr(d.ValIndex)).Inc()
-	}
-}
 
 func (a *Metrics) FetchDuties(
 	ctx context.Context,
@@ -225,3 +426,5 @@ func getBlockParams(block *ethpb.BeaconBlockContainer) (uint64, ethTypes.Slot, s
 	// TODO: Add merge block when implemented
 	return propIndex, slot, graffiti
 }
+
+*/

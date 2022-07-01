@@ -65,7 +65,8 @@ func (p *BeaconState) Run(
 	validatorKeys [][]byte,
 	poolName string,
 	currentBeaconState *spec.VersionedBeaconState,
-	prevBeaconState *spec.VersionedBeaconState) error {
+	prevBeaconState *spec.VersionedBeaconState,
+	valKeyToIndex map[string]uint64) error {
 
 	if currentBeaconState == nil || prevBeaconState == nil {
 		// TODO: Error?
@@ -75,9 +76,6 @@ func (p *BeaconState) Run(
 		// TODO: Error?
 		return errors.New("TODO:")
 	}
-
-	// TODO: This could be global
-	valKeyToIndex := PopulateKeysToIndexesMap(currentBeaconState)
 
 	validatorIndexes := GetIndexesFromKeys(validatorKeys, valKeyToIndex)
 	activeValidatorIndexes := GetActiveIndexes(validatorIndexes, currentBeaconState)
@@ -111,6 +109,7 @@ func (p *BeaconState) Run(
 	return nil
 }
 
+// TODO: Very naive approach
 func GetValidatorsIn(allSyncCommitteeIndexes []uint64, poolValidatorIndexes []uint64) []uint64 {
 	poolCommmitteeIndexes := make([]uint64, 0)
 	for i := range allSyncCommitteeIndexes {
@@ -122,6 +121,17 @@ func GetValidatorsIn(allSyncCommitteeIndexes []uint64, poolValidatorIndexes []ui
 		}
 	}
 	return poolCommmitteeIndexes
+}
+
+// Check if element is in set
+// TODO: Move to utils
+func IsValidatorIn(element uint64, set []uint64) bool {
+	for i := range set {
+		if element == set[i] {
+			return true
+		}
+	}
+	return false
 }
 
 func PopulateKeysToIndexesMap(beaconState *spec.VersionedBeaconState) map[string]uint64 {

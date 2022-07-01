@@ -213,6 +213,16 @@ func Test_GetValidatorsIn(t *testing.T) {
 	require.Equal(t, 2, len(poolSyncIndexes))
 }
 
+func Test_IsValidatorIn(t *testing.T) {
+
+	element := uint64(10)
+	set := []uint64{5, 10, 20}
+
+	isIn := IsValidatorIn(element, set)
+	require.Equal(t, true, isIn)
+
+}
+
 func Test_IsBitSet(t *testing.T) {
 	is := isBitSet(0, 0)
 	require.Equal(t, false, is)

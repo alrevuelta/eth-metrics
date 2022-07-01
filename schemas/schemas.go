@@ -3,8 +3,6 @@ package schemas
 import (
 	"math/big"
 	"time"
-
-	ethTypes "github.com/prysmaticlabs/eth2-types"
 )
 
 type ValidatorPerformanceMetrics struct {
@@ -63,6 +61,6 @@ type ProposalDutiesMetrics struct {
 
 type Duty struct {
 	ValIndex uint64
-	Slot     ethTypes.Slot
+	Slot     uint64
 	Graffiti string
 }

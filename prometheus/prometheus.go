@@ -140,22 +140,6 @@ var (
 		},
 	)
 
-	NOfScheduledBlocks = promauto.NewGauge(
-		prometheus.GaugeOpts{
-			Namespace: "validators",
-			Name:      "number_scheduled_blocks",
-			Help:      "Number of scheduled block proposals in a given epoch",
-		},
-	)
-
-	NOfProposedBlocks = promauto.NewGauge(
-		prometheus.GaugeOpts{
-			Namespace: "validators",
-			Name:      "number_proposed_blocks",
-			Help:      "Number of proposed blocks in a given epoch",
-		},
-	)
-
 	AvgIncDistance = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: "validators",
@@ -239,6 +223,28 @@ var (
 		},
 		[]string{
 			"validatorKey",
+		},
+	)
+
+	NOfProposedBlocks = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "number_proposed_blocks",
+			Help:      "Number of proposed blocks in a given epoch",
+		},
+		[]string{
+			"pool",
+		},
+	)
+
+	NOfMissedBlocks = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "number_missed_blocks",
+			Help:      "Number of missed blocks in a given epoch",
+		},
+		[]string{
+			"pool",
 		},
 	)
 
