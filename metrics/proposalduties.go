@@ -133,6 +133,10 @@ func (p *ProposalDuties) GetProposalMetrics(
 	}
 
 	for _, block := range proposedBlocks {
+		// If block was missed its nil
+		if block == nil {
+			continue
+		}
 		proposalMetrics.Proposed = append(
 			proposalMetrics.Proposed,
 			schemas.Duty{
