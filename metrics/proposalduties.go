@@ -187,6 +187,10 @@ func getPoolProposalDuties(
 		if IsValidatorIn(metrics.Scheduled[i].ValIndex, activeValidatorIndexes) {
 			poolDuties.Scheduled = append(poolDuties.Scheduled, metrics.Scheduled[i])
 		}
+	}
+
+	// Check the proposed blocks from the pool
+	for i := range metrics.Proposed {
 		if IsValidatorIn(metrics.Proposed[i].ValIndex, activeValidatorIndexes) {
 			poolDuties.Proposed = append(poolDuties.Proposed, metrics.Proposed[i])
 		}
