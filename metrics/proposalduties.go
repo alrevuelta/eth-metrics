@@ -113,12 +113,18 @@ func (p *ProposalDuties) GetProposalMetrics(
 		Missed:    make([]schemas.Duty, 0),
 	}
 
-	if proposalDuties[0].Slot != proposedBlocks[0].Header.Message.Slot {
-		return proposalMetrics, errors.New("duties and proposals contains different slots")
-	}
 	if len(proposalDuties) != len(proposedBlocks) {
 		return proposalMetrics, errors.New("duties and blocks have different sizes")
 	}
+
+	if proposalDuties == nil || proposedBlocks == nil {
+		return proposalMetrics, errors.New("duties and blocks can't be nil")
+	}
+
+	/* proposedBlocks[0].Header.Message.Slot is nil if the block was missed
+	if proposalDuties[0].Slot != proposedBlocks[0].Header.Message.Slot {
+		return proposalMetrics, errors.New("duties and proposals contains different slots")
+	}*/
 
 	proposalMetrics.Epoch = uint64(proposalDuties[0].Slot) / 32
 
