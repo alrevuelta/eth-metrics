@@ -7,17 +7,21 @@
 
 ## Introduction
 
-Monitor the performance of your Ethereum 2.0 staking pool. Just input the withdrawal credential(s) or wallet address(es) that was used in the deposit contract and the network you want to run. Note that a prysm gRPC beacon-chain is required at `localhost:4000`. Tested with up to 30000 validators. Some features:
-* Deposited Eth and rewards monitoring
-* Rates of faulty head/source/target voting
-* Monitor the percent of validators which balance decreased
-* Monitor the amount of eth that was earned/lost in an epoch
-* Proposed and missed blocks monitoring
+Monitor the performance of your ethereum consensus staking pool. Just input the withdrawal credential(s) or wallet address(es) that was used in the deposit contract and the network you want to run. This will be used to identify your validators. Some of the parameters that are monitored:
+* Deposited Eth and rewards
+* Rates of faulty head/source/target votes (see GASPER algorithm)
+* Delta in rewards/penalties between consecutive epochs
+* Proposed and missed blocks for each epoch
+
+Some features: 
 * All metrics are exposed with prometheus, see `/prometheus`
-* Only the latest epoch is analyzed, this tool can't go back in time from deployment
+* Calculates all metrics streaming the latest head-1 epoch
 * No need to run an archival node, default config should be enough
 
 See [this](https://github.com/alrevuelta/eth-pools-metrics/blob/master/prometheus/prometheus.go) for more information about the metrics and [this](https://github.com/alrevuelta/eth-pools-metrics/blob/master/docs/pools.md) if you want to get your pool monitored.
+
+**A note to old users:** This project started using [prysm](https://github.com/prysmaticlabs/prysm) gRPC but has migrated to the http api to be cross compatible with all clients. If you are still interested in the gRPC implementation, see [v0.0.10](https://github.com/alrevuelta/eth-metrics/releases/tag/v0.0.10) release.
+
 
 ## Build
 
@@ -45,11 +49,17 @@ go build
 
 ## Requirements
 
-Depending on how you want to use `eth-metrics`, you may need to run some extra software:
-* Ethereum 2.0 deposits can be fetched in two ways: from [thegraph](https://thegraph.com/) or from a local database. Depending on your use case, you may want to use one or the other. For large amounts of validators, perhaps using a local database with pre-indexed deposits is the best approach, since thegraph has some api call limits.
-* If you want to access the metrics, you may want to deploy `prometheus`.
+This project requires:
+* An ethereum `consensus` client compliant with the http api
+* An ethereum `execution` client compliant with the http api
+* `chaind` instance indexing deposits
+* `prometheus` (optional)
 
-### Custom deposits database
+### consensus-client
+
+### execution-client
+
+### chaind
 
 If you opt for running your own deposits indexer instead of just relying on thegraph, we recommend `chaind` project. Assuming you already have a postgres database running, you can run chaind as follows. This will create a `t_eth1_deposits` table that will be populated with all deposits to the deposits smart contract. Note that this table can take few hours to sync.
 
@@ -74,7 +84,7 @@ If you opt for running your own deposits indexer instead of just relying on theg
 --log-level=trace
 ```
 
-### Prometheus
+### prometheus (optional)
 
 You can expose the metrics to access them in a dashboard like grafana by running `prometheus` with [this configuration](https://github.com/alrevuelta/eth-pools-metrics/blob/master/docs/prometheus.yml).
 
@@ -91,12 +101,16 @@ $ ./eth-pools-metrics --help
 Usage of ./eth-pools-metrics:
   -beacon-rpc-endpoint string
     	Address:Port of a eth2 beacon node endpoint (default "localhost:4000")
+  -eth1address string
+    	Ethereum 1 http endpoint. To be used by rocket pool
+  -eth2address string
+    	Ethereum 2 http endpoint
   -from-address value
     	Wallet addresses used to deposit. Can be used multiple times
-  -network string
-    	Ethereum 2.0 network mainnet|prater|pyrmont (default "mainnet")
-  -pool-name string
-    	Name of the pool being monitored. If known, addresses are loaded by default (see known pools) (default "required")
+  -pool-name value
+    	Pool name to monitor. Can be useed multiple times
+  -postgres string
+    	Postgres db endpoit: postgresql://user:password@netloc:port/dbname (optional)
   -prometheus-port int
     	Prometheus port to listen to (default 9500)
   -version
@@ -107,25 +121,21 @@ Usage of ./eth-pools-metrics:
 
 ## Example
 
-Note that a prysm beacon-node must be running in `beacon-rpc-endpoint`. Set `from-address` to the address used to make the deposits to the eth2.0 contract. This addess(es) will be used to identify the validators to monitor. Metrics are shown as logs, but they are also exposed to prometheus.
+Log metrics for kraken pool (see `pools/pools.go`)
 
 ```console
 $ ./eth-pools-metrics \
---network=mainnet \
---from-address=0x631c2d8d0d7a80824e602a79800a98d93e909a9e
---beacon-rpc-endpoint=localhost:4000
---pool-name=my-pool-name
+--postgres=xxx://yyy:kkk@localhost:port/zzz \
+--eth1address=https:your-execution-endpoint \
+--eth2address=https:your-consensus-endpoint \
+--pool-name=kraken
 ```
 
-If the `pool-name` is known (see `pools/pools.go`) there is no need to provide `from-address`. Some of the major exchanges and pools addresses are already configured, so that you don't have to input all of them manually. For example, one can monitor all `poloniex` validators with the following command.
-
+You can provide your own hardcoded set of validators by providing a file containing the public keys of the validators, one key per line.
 ```console
 $ ./eth-pools-metrics \
---network=mainnet \
---beacon-rpc-endpoint=localhost:4000
---pool-name=poloniex
+--postgres=xxx://yyy:kkk@localhost:port/zzz \
+--eth1address=https:your-execution-endpoint \
+--eth2address=https:your-consensus-endpoint \
+--pool-name=/validators/coinbase.txt
 ```
-
-## TODO:
-* Experiment with sync committee duties
-* Flag worst performing validators

@@ -21,18 +21,10 @@ func Test_GetIndexesFromKeys(t *testing.T) {
 	beaconState := &spec.VersionedBeaconState{
 		Altair: &altair.BeaconState{
 			Validators: []*phase0.Validator{
-				{
-					PublicKey: validator_0,
-				},
-				{
-					PublicKey: validator_1,
-				},
-				{
-					PublicKey: validator_2,
-				},
-				{
-					PublicKey: validator_3,
-				},
+				{PublicKey: validator_0},
+				{PublicKey: validator_1},
+				{PublicKey: validator_2},
+				{PublicKey: validator_3},
 			},
 		},
 	}
@@ -170,18 +162,10 @@ func Test_PopulateKeysToIndexesMap(t *testing.T) {
 	beaconState := &spec.VersionedBeaconState{
 		Altair: &altair.BeaconState{
 			Validators: []*phase0.Validator{
-				{
-					PublicKey: validator_0,
-				},
-				{
-					PublicKey: validator_1,
-				},
-				{
-					PublicKey: validator_2,
-				},
-				{
-					PublicKey: validator_3,
-				},
+				{PublicKey: validator_0},
+				{PublicKey: validator_1},
+				{PublicKey: validator_2},
+				{PublicKey: validator_3},
 			},
 		},
 	}

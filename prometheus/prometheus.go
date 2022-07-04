@@ -16,10 +16,7 @@ func Run(port int) {
 	}()
 }
 
-// TODO: Add the pool before each name
-
 var (
-	// TODO: For all validato states, use a GaugeVec with key (state): value (amount)
 	NOfUnkownValidators = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: "validators",
@@ -272,8 +269,6 @@ var (
 		},
 	)
 
-	// Code above here will be deprecated
-
 	TotalBalanceMetrics = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: "validators",
@@ -399,6 +394,4 @@ var (
 			Help:      "Total validators",
 		},
 	)
-
-	// TODO: Add remaining time for next slot, to monitor perfomance issues
 )
