@@ -1,14 +1,88 @@
+// TODO: Outdated
+
 package metrics
 
 import (
-	ethTypes "github.com/prysmaticlabs/eth2-types"
-	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
-	//log "github.com/sirupsen/logrus"
+	"fmt"
+	"testing"
+
 	"github.com/alrevuelta/eth-pools-metrics/schemas"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
+func Test_getPoolProposalDuties(t *testing.T) {
+
+	validatorIndexes := []uint64{10, 20, 30}
+
+	epochDuties := schemas.ProposalDutiesMetrics{
+		Epoch: 0,
+		Scheduled: []schemas.Duty{
+			{ValIndex: 9, Slot: 1, Graffiti: ""},
+			{ValIndex: 10, Slot: 5, Graffiti: ""},
+			{ValIndex: 20, Slot: 7, Graffiti: ""},
+			{ValIndex: 155, Slot: 8, Graffiti: ""},
+		},
+		Proposed: []schemas.Duty{
+			{ValIndex: 9, Slot: 1, Graffiti: ""},
+			{ValIndex: 10, Slot: 5, Graffiti: ""},
+			{ValIndex: 20, Slot: 7, Graffiti: ""},
+			{ValIndex: 155, Slot: 8, Graffiti: ""},
+		},
+		Missed: []schemas.Duty{
+			// No missed duties
+		},
+	}
+	proposalMetrics := getPoolProposalDuties(&epochDuties, "poolName", validatorIndexes)
+
+	fmt.Println("priposal m etrics", proposalMetrics)
+
+	require.Equal(t, proposalMetrics.Scheduled[0].ValIndex, uint64(10))
+	require.Equal(t, proposalMetrics.Scheduled[0].Slot, uint64(5))
+
+	require.Equal(t, proposalMetrics.Scheduled[1].ValIndex, uint64(20))
+	require.Equal(t, proposalMetrics.Scheduled[1].Slot, uint64(7))
+
+	require.Equal(t, proposalMetrics.Proposed[0].ValIndex, uint64(10))
+	require.Equal(t, proposalMetrics.Proposed[0].Slot, uint64(5))
+
+	require.Equal(t, proposalMetrics.Proposed[1].ValIndex, uint64(20))
+	require.Equal(t, proposalMetrics.Proposed[1].Slot, uint64(7))
+
+	require.Equal(t, 0, len(proposalMetrics.Missed))
+}
+
+func Test_getMissedDuties(t *testing.T) {
+	epochDuties := schemas.ProposalDutiesMetrics{
+		Epoch: 0,
+		Scheduled: []schemas.Duty{
+			{ValIndex: 9, Slot: 1, Graffiti: ""},
+			{ValIndex: 10, Slot: 5, Graffiti: ""},
+			{ValIndex: 20, Slot: 7, Graffiti: ""},
+			{ValIndex: 155, Slot: 8, Graffiti: ""},
+		},
+		Proposed: []schemas.Duty{
+			{ValIndex: 9, Slot: 1, Graffiti: ""},
+			{ValIndex: 10, Slot: 5, Graffiti: ""},
+			//{ValIndex: 20, Slot: 7, Graffiti: ""},  // missed
+			//{ValIndex: 155, Slot: 8, Graffiti: ""}, // missed
+		},
+		Missed: []schemas.Duty{
+			// No missed duties
+		},
+	}
+
+	epochDuties.Missed = getMissedDuties(epochDuties.Scheduled, epochDuties.Proposed)
+
+	require.Equal(t, epochDuties.Missed[0].ValIndex, uint64(20))
+	require.Equal(t, epochDuties.Missed[0].Slot, uint64(7))
+
+	require.Equal(t, epochDuties.Missed[1].ValIndex, uint64(155))
+	require.Equal(t, epochDuties.Missed[1].Slot, uint64(8))
+}
+
+//log "github.com/sirupsen/logrus"
+
+/*
 // Validators p1-p7 have active duties
 var p1 = ToBytes48([]byte{1})
 var p2 = ToBytes48([]byte{2})
@@ -154,3 +228,4 @@ func Test_getMissedDuties(t *testing.T) {
 	require.Equal(t, missedDuties[1].ValIndex, uint64(3))
 	require.Equal(t, missedDuties[1].Slot, ethTypes.Slot(3000))
 }
+*/

@@ -1,7 +1,6 @@
 package schemas
 
 import (
-	ethTypes "github.com/prysmaticlabs/eth2-types"
 	"math/big"
 	"time"
 )
@@ -15,11 +14,17 @@ type ValidatorPerformanceMetrics struct {
 	NOfIncorrectTarget     uint64
 	NOfIncorrectHead       uint64
 	NOfValidatingKeys      uint64
-	NOfValsWithLessBalance uint64
+	NOfValsWithLessBalance uint64 // TODO: Deprecate, same as array length
 	EarnedBalance          *big.Int
 	LosedBalance           *big.Int
-	MissedAttestationsKeys []string
-	LostBalanceKeys        []string
+	MissedAttestationsKeys []string // TODO: Deprecate in favor of IndexesMissedAtt
+	LostBalanceKeys        []string // TODO: Depercate in favor of IndexesLessBalance
+	IndexesMissedAtt       []uint64
+	IndexesLessBalance     []uint64
+	TotalBalance           *big.Int
+	EffectiveBalance       *big.Int
+	TotalRewards           *big.Int
+	DeltaEpochBalance      *big.Int
 }
 
 type ValidatorStatusMetrics struct {
@@ -56,6 +61,6 @@ type ProposalDutiesMetrics struct {
 
 type Duty struct {
 	ValIndex uint64
-	Slot     ethTypes.Slot
+	Slot     uint64
 	Graffiti string
 }

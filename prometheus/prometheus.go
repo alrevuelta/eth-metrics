@@ -2,10 +2,11 @@ package prometheus
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"net/http"
 )
 
 func Run(port int) {
@@ -15,10 +16,7 @@ func Run(port int) {
 	}()
 }
 
-// TODO: Add the pool before each name
-
 var (
-	// TODO: For all validato states, use a GaugeVec with key (state): value (amount)
 	NOfUnkownValidators = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: "validators",
@@ -139,22 +137,6 @@ var (
 		},
 	)
 
-	NOfScheduledBlocks = promauto.NewGauge(
-		prometheus.GaugeOpts{
-			Namespace: "validators",
-			Name:      "number_scheduled_blocks",
-			Help:      "Number of scheduled block proposals in a given epoch",
-		},
-	)
-
-	NOfProposedBlocks = promauto.NewGauge(
-		prometheus.GaugeOpts{
-			Namespace: "validators",
-			Name:      "number_proposed_blocks",
-			Help:      "Number of proposed blocks in a given epoch",
-		},
-	)
-
 	AvgIncDistance = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: "validators",
@@ -179,11 +161,19 @@ var (
 		},
 	)
 
-	CumulativeRewards = promauto.NewGauge(
+	TotalBalance = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: "validators",
-			Name:      "cumulative_rewards",
-			Help:      "Cumulative rewards for all validators",
+			Name:      "total_balance_gwei",
+			Help:      "Total balance for all validators",
+		},
+	)
+
+	EffectiveBalance = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "effective_balance_gwei",
+			Help:      "Total effective balance for all validators",
 		},
 	)
 
@@ -233,6 +223,28 @@ var (
 		},
 	)
 
+	NOfProposedBlocks = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "number_proposed_blocks",
+			Help:      "Number of proposed blocks in a given epoch",
+		},
+		[]string{
+			"pool",
+		},
+	)
+
+	NOfMissedBlocks = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "number_missed_blocks",
+			Help:      "Number of missed blocks in a given epoch",
+		},
+		[]string{
+			"pool",
+		},
+	)
+
 	ProposedBlocks = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: "validators",
@@ -257,5 +269,129 @@ var (
 		},
 	)
 
-	// TODO: Add remaining time for next slot, to monitor perfomance issues
+	TotalBalanceMetrics = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "total_balance_metrics",
+			Help:      "",
+		},
+		[]string{
+			"pool",
+		},
+	)
+
+	ActiveValidatorsMetrics = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "active_validators_metrics",
+			Help:      "",
+		},
+		[]string{
+			"pool",
+		},
+	)
+
+	IncorrectSourceMetrics = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "incorrect_source_metrics",
+			Help:      "",
+		},
+		[]string{
+			"pool",
+		},
+	)
+
+	IncorrectTargetMetrics = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "incorrect_target_metrics",
+			Help:      "",
+		},
+		[]string{
+			"pool",
+		},
+	)
+
+	IncorrectHeadMetrics = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "incorrect_head_metrics",
+			Help:      "",
+		},
+		[]string{
+			"pool",
+		},
+	)
+
+	EpochEarnedAmountMetrics = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "epoch_earned_amount_metrics",
+			Help:      "",
+		},
+		[]string{
+			"pool",
+		},
+	)
+
+	EpochLostAmountMetrics = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "epoch_lost_amount_metrics",
+			Help:      "",
+		},
+		[]string{
+			"pool",
+		},
+	)
+
+	DeltaEpochBalanceMetrics = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "delta_epoch_balance_metrics",
+			Help:      "",
+		},
+		[]string{
+			"pool",
+		},
+	)
+
+	CumulativeConsensusRewards = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "cumulative_consensus_rewards",
+			Help:      "Cumulative rewards",
+		},
+		[]string{
+			"pool",
+		},
+	)
+
+	NumOfSyncCommitteeValidators = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "num_sync_committee_validators",
+			Help:      "Number of sync committee validators",
+		},
+		[]string{
+			"pool",
+		},
+	)
+
+	TotalDepositedValidators = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "total_validators",
+			Help:      "Total validators",
+		},
+	)
+
+	TotalSlashedValidators = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: "validators",
+			Name:      "total_slashed_validators",
+			Help:      "Total validators",
+		},
+	)
 )

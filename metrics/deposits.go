@@ -20,7 +20,7 @@ func (a *Metrics) StreamDeposits() {
 		var err error
 
 		// TODO: Don't handle it as a special case
-		if a.PoolName == "rocketpool" {
+		if "--" == "rocketpool" {
 			pubKeysDeposited, err = pools.GetRocketPoolKeys(a.eth1Address)
 		} else if a.postgresql != nil {
 			pubKeysDeposited, err = a.postgresql.GetKeysByFromAddresses(a.fromAddrList)

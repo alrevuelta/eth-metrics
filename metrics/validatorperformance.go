@@ -41,7 +41,7 @@ func (a *Metrics) StreamValidatorPerformance() {
 			log.Error(err)
 		}
 		metrics.Time = time
-		metrics.PoolName = a.PoolName
+		//metrics.PoolName = a.PoolName
 
 		logValidatorPerformance(metrics)
 		setPrometheusValidatorPerformance(metrics)
