@@ -4,6 +4,7 @@
 [![Release](https://github.com/alrevuelta/eth-pools-metrics/actions/workflows/release.yml/badge.svg)](https://github.com/alrevuelta/eth-pools-metrics/actions/workflows/release.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/alrevuelta/eth-pools-metrics)](https://goreportcard.com/report/github.com/alrevuelta/eth-pools-metrics)
 [![Tests](https://github.com/alrevuelta/eth-pools-metrics/actions/workflows/tests.yml/badge.svg)](https://github.com/alrevuelta/eth-pools-metrics/actions/workflows/tests.yml)
+[![gitpoap badge](https://public-api.gitpoap.io/v1/repo/alrevuelta/eth-metrics/badge)](https://www.gitpoap.io/gh/alrevuelta/eth-metrics)
 
 ## Introduction
 
