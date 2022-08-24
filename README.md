@@ -58,6 +58,8 @@ This project requires:
 
 ### consensus-client
 
+Remember to enable `--enable-debug-rpc-endpoints`
+
 ### execution-client
 
 ### chaind
@@ -102,6 +104,8 @@ $ ./eth-pools-metrics --help
 Usage of ./eth-pools-metrics:
   -beacon-rpc-endpoint string
     	Address:Port of a eth2 beacon node endpoint (default "localhost:4000")
+  -epoch-debug string
+    	Calculates the stats for a given epoch and exits, useful for debugging
   -eth1address string
     	Ethereum 1 http endpoint. To be used by rocket pool
   -eth2address string

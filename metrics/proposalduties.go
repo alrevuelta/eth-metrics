@@ -67,6 +67,8 @@ func (p *ProposalDuties) RunProposalMetrics(
 }
 
 func (p *ProposalDuties) GetProposalDuties(epoch uint64) ([]*api.ProposerDuty, error) {
+	log.Info("Fetching proposal duties for epoch: ", epoch)
+
 	// Empty indexes to force fetching all duties
 	indexes := make([]phase0.ValidatorIndex, 0)
 
@@ -83,6 +85,7 @@ func (p *ProposalDuties) GetProposalDuties(epoch uint64) ([]*api.ProposerDuty, e
 }
 
 func (p *ProposalDuties) GetProposedBlocks(epoch uint64) ([]*api.BeaconBlockHeader, error) {
+	log.Info("Fetching proposed blocks for epoch: ", epoch)
 
 	epochBlockHeaders := make([]*api.BeaconBlockHeader, 0)
 	slotsInEpoch := uint64(32)
@@ -93,7 +96,7 @@ func (p *ProposalDuties) GetProposedBlocks(epoch uint64) ([]*api.BeaconBlockHead
 
 		blockHeader, err := p.httpClient.BeaconBlockHeader(context.Background(), epochStr)
 		if err != nil {
-			return epochBlockHeaders, err
+			return epochBlockHeaders, errors.Wrap(err, "error getting beacon block header")
 		}
 		epochBlockHeaders = append(epochBlockHeaders, blockHeader)
 		slotWithinEpoch++

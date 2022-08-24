@@ -2,7 +2,9 @@ package metrics
 
 import (
 	"context"
+	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -51,7 +53,8 @@ type Metrics struct {
 	Epoch uint64
 	Slot  uint64
 
-	PoolNames []string
+	PoolNames  []string
+	epochDebug string
 }
 
 func NewMetrics(
@@ -115,6 +118,7 @@ func NewMetrics(
 		postgresql:  pg,
 		PoolNames:   config.PoolNames,
 		httpClient:  httpClient,
+		epochDebug:  config.EpochDebug,
 	}, nil
 }
 
@@ -170,6 +174,16 @@ func (a *Metrics) Loop() {
 		}
 
 		currentEpoch := uint64(headSlot.HeadSlot)/uint64(32) - 3
+
+		// If a debug epoch is set, overwrite the slot. Will compute just metrics for that epoch
+		if a.epochDebug != "" {
+			epochDebugUint64, err := strconv.ParseUint(a.epochDebug, 10, 64)
+			if err != nil {
+				log.Fatal(err)
+			}
+			log.Warn("Debugging mode, calculating metrics for epoch: ", a.epochDebug)
+			currentEpoch = epochDebugUint64
+		}
 
 		if prevEpoch >= currentEpoch {
 			// do nothing
@@ -236,6 +250,11 @@ func (a *Metrics) Loop() {
 
 		prevBeaconState = currentBeaconState
 		prevEpoch = currentEpoch
+
+		if a.epochDebug != "" {
+			log.Warn("Running in debug mode, exiting ok.")
+			os.Exit(0)
+		}
 	}
 }
 

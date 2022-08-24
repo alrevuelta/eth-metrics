@@ -21,6 +21,7 @@ type Config struct {
 	Postgres              string
 	Eth1Address           string
 	Eth2Address           string
+	EpochDebug            string
 }
 
 // custom implementation to allow providing the same flag multiple times
@@ -53,6 +54,7 @@ func NewCliConfig() (*Config, error) {
 	var postgres = flag.String("postgres", "", "Postgres db endpoit: postgresql://user:password@netloc:port/dbname (optional)")
 	var eth1Address = flag.String("eth1address", "", "Ethereum 1 http endpoint. To be used by rocket pool")
 	var eth2Address = flag.String("eth2address", "", "Ethereum 2 http endpoint")
+	var epochDebug = flag.String("epoch-debug", "", "Calculates the stats for a given epoch and exits, useful for debugging")
 	flag.Parse()
 
 	if *version {
@@ -86,6 +88,7 @@ func NewCliConfig() (*Config, error) {
 		Postgres:              *postgres,
 		Eth1Address:           *eth1Address,
 		Eth2Address:           *eth2Address,
+		EpochDebug:            *epochDebug,
 	}
 	logConfig(conf)
 	return conf, nil
@@ -102,5 +105,6 @@ func logConfig(cfg *Config) {
 		"Postgres":       cfg.Postgres,
 		"Eth1Address":    cfg.Eth1Address,
 		"Eth2Address":    cfg.Eth2Address,
+		"EpochDebug":     cfg.EpochDebug,
 	}).Info("Cli Config:")
 }
