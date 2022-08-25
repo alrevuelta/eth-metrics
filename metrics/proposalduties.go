@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/alrevuelta/eth-pools-metrics/prometheus"
@@ -90,16 +91,21 @@ func (p *ProposalDuties) GetProposedBlocks(epoch uint64) ([]*api.BeaconBlockHead
 	epochBlockHeaders := make([]*api.BeaconBlockHeader, 0)
 	slotsInEpoch := uint64(32)
 
-	slotWithinEpoch := uint64(0)
-	for slotWithinEpoch < slotsInEpoch {
-		epochStr := strconv.FormatUint(epoch*slotsInEpoch+slotWithinEpoch, 10)
+	for i := uint64(0); i < slotsInEpoch; i++ {
+		slot := epoch*slotsInEpoch + uint64(i)
+		slotStr := strconv.FormatUint(slot, 10)
+		log.Debug("Fetching block for slot:" + slotStr)
 
-		blockHeader, err := p.httpClient.BeaconBlockHeader(context.Background(), epochStr)
+		blockHeader, err := p.httpClient.BeaconBlockHeader(context.Background(), slotStr)
 		if err != nil {
-			return epochBlockHeaders, errors.Wrap(err, "error getting beacon block header")
+			// This error is expected in skipped or orphaned blocks
+			if !strings.Contains(err.Error(), "Could not find requested block") {
+				return epochBlockHeaders, errors.Wrap(err, "error getting beacon block header")
+			}
+			log.Warn("Block at slot " + slotStr + " was not found")
+			continue
 		}
 		epochBlockHeaders = append(epochBlockHeaders, blockHeader)
-		slotWithinEpoch++
 	}
 
 	return epochBlockHeaders, nil
@@ -117,7 +123,8 @@ func (p *ProposalDuties) GetProposalMetrics(
 	}
 
 	if len(proposalDuties) != len(proposedBlocks) {
-		return proposalMetrics, errors.New("duties and blocks have different sizes")
+		log.Warn("Duties and blocks have different sizes, ok if n blocks were missed/orphaned")
+		//return proposalMetrics, errors.New("duties and blocks have different sizes")
 	}
 
 	if proposalDuties == nil || proposedBlocks == nil {
