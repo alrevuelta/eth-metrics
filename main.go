@@ -2,14 +2,15 @@ package main
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/alrevuelta/eth-pools-metrics/config"
 	"github.com/alrevuelta/eth-pools-metrics/metrics"
 	"github.com/alrevuelta/eth-pools-metrics/price"
 	"github.com/alrevuelta/eth-pools-metrics/prometheus"
 	log "github.com/sirupsen/logrus"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 func main() {
@@ -17,6 +18,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	logLevel, err := log.ParseLevel(config.Verbosity)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.SetLevel(logLevel)
 
 	prometheus.Run(config.PrometheusPort)
 

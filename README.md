@@ -118,6 +118,8 @@ Usage of ./eth-pools-metrics:
     	Postgres db endpoit: postgresql://user:password@netloc:port/dbname (optional)
   -prometheus-port int
     	Prometheus port to listen to (default 9500)
+  -verbosity string
+    	Logging verbosity (trace, debug, info=default, warn, error, fatal, panic) (default "info")
   -version
     	Prints the release version and exits
   -withdrawal-credentials value
