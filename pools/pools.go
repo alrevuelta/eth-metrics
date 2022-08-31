@@ -725,3 +725,43 @@ func ReadCustomValidatorsFile(validatorKeysFile string) (validatorKeys [][]byte,
 
 	return validatorKeys, nil
 }
+
+func ReadEthstaValidatorsFile(validatorKeysFile string) (validatorKeys [][]byte, err error) {
+	validatorKeys = make([][]byte, 0)
+
+	file, err := os.Open(validatorKeysFile)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+
+		// Skip first line
+		line := scanner.Text()
+		if line == "address,version,entity" {
+			continue
+		}
+		fields := strings.Split(line, ",")
+		if len(fields) != 3 {
+			log.Fatal("The format of the file is not the expected, see ethsta.com")
+		}
+		keyStr := "0x" + fields[0]
+
+		if len(keyStr) != 98 {
+			log.Fatal("length of key is incorrect: ", keyStr)
+		}
+		valKey, err := hexutil.Decode(keyStr)
+		if err != nil {
+			log.Fatal("could not decode key: ", keyStr)
+		}
+		validatorKeys = append(validatorKeys, valKey)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return validatorKeys, nil
+}

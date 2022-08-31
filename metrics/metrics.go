@@ -272,7 +272,17 @@ func (a *Metrics) GetValidatorKeys(poolName string) (string, [][]byte, error) {
 	var pubKeysDeposited [][]byte
 	var err error
 	if strings.HasSuffix(poolName, ".txt") {
+		// Vanila file, one key per line
 		pubKeysDeposited, err = pools.ReadCustomValidatorsFile(poolName)
+		if err != nil {
+			log.Fatal(err)
+		}
+		// trim the file path and extension
+		poolName = filepath.Base(poolName)
+		poolName = strings.TrimSuffix(poolName, filepath.Ext(poolName))
+	} else if strings.HasSuffix(poolName, ".csv") {
+		// ethsta.com format
+		pubKeysDeposited, err = pools.ReadEthstaValidatorsFile(poolName)
 		if err != nil {
 			log.Fatal(err)
 		}
