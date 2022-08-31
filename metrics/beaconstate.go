@@ -31,6 +31,7 @@ type BeaconState struct {
 	pg            *postgresql.Postgresql
 	fromAddresses []string
 	poolNames     []string
+	timeout       int
 }
 
 func NewBeaconState(
@@ -38,7 +39,9 @@ func NewBeaconState(
 	eth2Endpoint string,
 	pg *postgresql.Postgresql,
 	fromAddresses []string,
-	poolNames []string) (*BeaconState, error) {
+	poolNames []string,
+	timeout int,
+) (*BeaconState, error) {
 
 	client, err := http.New(context.Background(),
 		http.WithTimeout(60*time.Second),
@@ -58,6 +61,7 @@ func NewBeaconState(
 		fromAddresses: fromAddresses,
 		poolNames:     poolNames,
 		eth1Endpoint:  eth1Endpoint,
+		timeout:       timeout,
 	}, nil
 }
 
@@ -227,8 +231,11 @@ func (p *BeaconState) GetBeaconState(epoch uint64) (*spec.VersionedBeaconState, 
 	// but we want to run the metrics on the last slot, so -1
 	// goes to the last slot of the previous epoch
 	slotStr := strconv.FormatUint(epoch*32-1, 10)
+
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(p.timeout))
+	defer cancel()
 	beaconState, err := p.httpClient.BeaconState(
-		context.Background(),
+		ctxTimeout,
 		slotStr)
 	if err != nil {
 		return nil, err
@@ -379,10 +386,10 @@ func ParticipationDebug(
 		nActiveValidators++
 	}
 
-	log.Info("Active validators", nActiveValidators)
-	log.Info("Correct Source", (float64(nCorrectSource) / float64(nActiveValidators) * 100))
-	log.Info("Correct Target", (float64(nCorrectTarget) / float64(nActiveValidators) * 100))
-	log.Info("Correct Head", (float64(nCorrectHead) / float64(nActiveValidators) * 100))
+	log.Info("Active validators: ", nActiveValidators)
+	log.Info("Correct Source: ", (float64(nCorrectSource) / float64(nActiveValidators) * 100))
+	log.Info("Correct Target: ", (float64(nCorrectTarget) / float64(nActiveValidators) * 100))
+	log.Info("Correct Head: ", (float64(nCorrectHead) / float64(nActiveValidators) * 100))
 }
 
 func Slashings(beaconState *spec.VersionedBeaconState) {
