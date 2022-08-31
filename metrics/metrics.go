@@ -27,6 +27,7 @@ import (
 )
 
 type Metrics struct {
+	// TODO: Remove unneeded stuff
 	beaconChainClient ethpb.BeaconChainClient
 	validatorClient   ethpb.BeaconNodeValidatorClient
 	nodeClient        ethpb.NodeClient
@@ -40,7 +41,7 @@ type Metrics struct {
 	fromAddrList   []string
 	eth1Address    string
 	eth2Address    string
-	theGraph       *thegraph.Thegraph
+	theGraph       *thegraph.Thegraph // TODO: Remove
 	postgresql     *postgresql.Postgresql
 
 	httpClient *http.Service
@@ -55,6 +56,7 @@ type Metrics struct {
 
 	PoolNames  []string
 	epochDebug string
+	config     *config.Config // TODO: Remove repeated parameters
 }
 
 func NewMetrics(
@@ -119,6 +121,7 @@ func NewMetrics(
 		PoolNames:   config.PoolNames,
 		httpClient:  httpClient,
 		epochDebug:  config.EpochDebug,
+		config:      config,
 	}, nil
 }
 
@@ -129,6 +132,7 @@ func (a *Metrics) Run() {
 		a.postgresql,
 		a.fromAddrList,
 		a.PoolNames,
+		a.config.StateTimeout,
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -165,15 +169,17 @@ func (a *Metrics) Loop() {
 		headSlot, err := a.httpClient.NodeSyncing(context.Background())
 		if err != nil {
 			log.Error("Could not get node sync status:", err)
+			time.Sleep(5 * time.Second)
 			continue
 		}
 
 		if headSlot.IsSyncing {
 			log.Error("Node is not in sync")
+			time.Sleep(5 * time.Second)
 			continue
 		}
 
-		currentEpoch := uint64(headSlot.HeadSlot)/uint64(32) - 3
+		currentEpoch := uint64(headSlot.HeadSlot)/uint64(32) - 2
 
 		// If a debug epoch is set, overwrite the slot. Will compute just metrics for that epoch
 		if a.epochDebug != "" {

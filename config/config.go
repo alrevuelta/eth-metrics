@@ -23,6 +23,7 @@ type Config struct {
 	Eth2Address           string
 	EpochDebug            string
 	Verbosity             string
+	StateTimeout          int
 }
 
 // custom implementation to allow providing the same flag multiple times
@@ -55,6 +56,7 @@ func NewCliConfig() (*Config, error) {
 	var postgres = flag.String("postgres", "", "Postgres db endpoit: postgresql://user:password@netloc:port/dbname (optional)")
 	var eth1Address = flag.String("eth1address", "", "Ethereum 1 http endpoint. To be used by rocket pool")
 	var eth2Address = flag.String("eth2address", "", "Ethereum 2 http endpoint")
+	var stateTimeout = flag.Int("state-timeout", 60, "Timeout in seconds for fetching the beacon state")
 	var epochDebug = flag.String("epoch-debug", "", "Calculates the stats for a given epoch and exits, useful for debugging")
 	var verbosity = flag.String("verbosity", "info", "Logging verbosity (trace, debug, info=default, warn, error, fatal, panic)")
 	flag.Parse()
@@ -92,6 +94,7 @@ func NewCliConfig() (*Config, error) {
 		Eth2Address:           *eth2Address,
 		EpochDebug:            *epochDebug,
 		Verbosity:             *verbosity,
+		StateTimeout:          *stateTimeout,
 	}
 	logConfig(conf)
 	return conf, nil
