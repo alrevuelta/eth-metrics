@@ -2,14 +2,18 @@ package pools
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 // Eth1 Addresses used to identify the pools in the deposit contract
+// TODO: Remove all this. Dont hardcode it anymore
 var PoolsAddresses = map[string][]string{
 	"kraken": {
 		"0xa40dfee99e1c85dc97fdc594b16a460717838703",
@@ -693,6 +697,7 @@ var PoolsAddresses = map[string][]string{
 }
 
 func ReadCustomValidatorsFile(validatorKeysFile string) (validatorKeys [][]byte, err error) {
+	log.Info("Reading validator keys from .txt: ", validatorKeysFile)
 	validatorKeys = make([][]byte, 0)
 
 	file, err := os.Open(validatorKeysFile)
@@ -703,18 +708,27 @@ func ReadCustomValidatorsFile(validatorKeysFile string) (validatorKeys [][]byte,
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		keyStr := strings.Trim(scanner.Text(), "\"")
+		line := scanner.Text()
+
+		// Skip first line
+		if (line == "f_validator_pubkey") || (line == "f0_") {
+			continue
+		}
+		keyStr := strings.Trim(line, "\"")
+		if strings.Contains(keyStr, "\\x") {
+			keyStr = strings.Replace(line, "\\x", "", -1)
+		}
 		if !strings.HasPrefix(keyStr, "0x") {
 			keyStr = "0x" + keyStr
 		}
 
 		if len(keyStr) != 98 {
-			log.Fatal("length of key is incorrect: ", keyStr)
+			return validatorKeys, errors.New(fmt.Sprintf("length of key is incorrect: %d", len(keyStr)))
 		}
 
 		valKey, err := hexutil.Decode(keyStr)
 		if err != nil {
-			log.Fatal("could not decode key: ", keyStr)
+			return validatorKeys, errors.Wrap(err, fmt.Sprintf("could not decode key: %s", keyStr))
 		}
 		validatorKeys = append(validatorKeys, valKey)
 	}
@@ -723,10 +737,12 @@ func ReadCustomValidatorsFile(validatorKeysFile string) (validatorKeys [][]byte,
 		return nil, err
 	}
 
+	log.Info("Done reading ", len(validatorKeys), " from ", validatorKeysFile)
 	return validatorKeys, nil
 }
 
 func ReadEthstaValidatorsFile(validatorKeysFile string) (validatorKeys [][]byte, err error) {
+	log.Info("Reading validator keys from ethsta.com csv file: ", validatorKeysFile)
 	validatorKeys = make([][]byte, 0)
 
 	file, err := os.Open(validatorKeysFile)
@@ -745,16 +761,16 @@ func ReadEthstaValidatorsFile(validatorKeysFile string) (validatorKeys [][]byte,
 		}
 		fields := strings.Split(line, ",")
 		if len(fields) != 3 {
-			log.Fatal("The format of the file is not the expected, see ethsta.com")
+			return validatorKeys, errors.New("the format of the file is not the expected, see ethsta.com")
 		}
 		keyStr := "0x" + fields[0]
 
 		if len(keyStr) != 98 {
-			log.Fatal("length of key is incorrect: ", keyStr)
+			return validatorKeys, errors.New(fmt.Sprintf("length of key is incorrect: %d", len(keyStr)))
 		}
 		valKey, err := hexutil.Decode(keyStr)
 		if err != nil {
-			log.Fatal("could not decode key: ", keyStr)
+			return validatorKeys, errors.Wrap(err, fmt.Sprintf("could not decode key: %s", keyStr))
 		}
 		validatorKeys = append(validatorKeys, valKey)
 	}
@@ -763,5 +779,6 @@ func ReadEthstaValidatorsFile(validatorKeysFile string) (validatorKeys [][]byte,
 		return nil, err
 	}
 
+	log.Info("Done reading ", len(validatorKeys), " from ", validatorKeysFile)
 	return validatorKeys, nil
 }
