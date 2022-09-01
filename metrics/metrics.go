@@ -156,6 +156,13 @@ func (a *Metrics) Run() {
 			go pools.RocketPoolFetcher(a.eth1Address)
 			break
 		}
+
+		// Check that the validator keys are correct
+		_, _, err := a.GetValidatorKeys(poolName)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 	}
 	go a.Loop()
 }
@@ -272,6 +279,7 @@ func (a *Metrics) GetValidatorKeys(poolName string) (string, [][]byte, error) {
 	var pubKeysDeposited [][]byte
 	var err error
 	if strings.HasSuffix(poolName, ".txt") {
+		// Vanila file, one key per line
 		pubKeysDeposited, err = pools.ReadCustomValidatorsFile(poolName)
 		if err != nil {
 			log.Fatal(err)
@@ -279,8 +287,19 @@ func (a *Metrics) GetValidatorKeys(poolName string) (string, [][]byte, error) {
 		// trim the file path and extension
 		poolName = filepath.Base(poolName)
 		poolName = strings.TrimSuffix(poolName, filepath.Ext(poolName))
+	} else if strings.HasSuffix(poolName, ".csv") {
+		// ethsta.com format
+		pubKeysDeposited, err = pools.ReadEthstaValidatorsFile(poolName)
+		if err != nil {
+			log.Fatal(err)
+		}
+		// trim the file path and extension
+		poolName = filepath.Base(poolName)
+		poolName = strings.TrimSuffix(poolName, filepath.Ext(poolName))
+		// TODO: Remove, only allow keys from file
 	} else if poolName == "rocketpool" {
 		pubKeysDeposited = pools.RocketPoolKeys
+		// TODO: Remove, only allow keys from file
 	} else {
 		poolAddressList := pools.PoolsAddresses[poolName]
 		pubKeysDeposited, err = a.postgresql.GetKeysByFromAddresses(poolAddressList)
