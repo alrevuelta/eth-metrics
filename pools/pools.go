@@ -711,7 +711,7 @@ func ReadCustomValidatorsFile(validatorKeysFile string) (validatorKeys [][]byte,
 		line := scanner.Text()
 
 		// Skip first line
-		if (line == "f_validator_pubkey") || (line == "f0_") {
+		if (line == "f_validator_pubkey") || (line == "f0_") || (line == "f_public_key") {
 			continue
 		}
 		keyStr := strings.Trim(line, "\"")
