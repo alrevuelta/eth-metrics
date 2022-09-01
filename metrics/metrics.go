@@ -15,25 +15,15 @@ import (
 	"github.com/alrevuelta/eth-pools-metrics/config"
 	"github.com/alrevuelta/eth-pools-metrics/pools"
 	"github.com/alrevuelta/eth-pools-metrics/postgresql"
-	prysmconcurrent "github.com/alrevuelta/eth-pools-metrics/prysm-concurrent"
 	"github.com/alrevuelta/eth-pools-metrics/thegraph"
 	"github.com/pkg/errors"
-	ethpb "github.com/prysmaticlabs/prysm/v2/proto/prysm/v1alpha1"
-	"github.com/prysmaticlabs/prysm/v2/time/slots"
 	log "github.com/sirupsen/logrus"
-
 	//log "github.com/sirupsen/logrus"
-	ethTypes "github.com/prysmaticlabs/eth2-types"
 )
 
 type Metrics struct {
-	// TODO: Remove unneeded stuff
-	beaconChainClient ethpb.BeaconChainClient
-	validatorClient   ethpb.BeaconNodeValidatorClient
-	nodeClient        ethpb.NodeClient
-	prysmConcurrent   *prysmconcurrent.PrysmConcurrent
-	genesisSeconds    uint64
-	slotsInEpoch      uint64
+	genesisSeconds uint64
+	slotsInEpoch   uint64
 
 	depositedKeys  [][]byte
 	validatingKeys [][]byte
@@ -308,12 +298,4 @@ func (a *Metrics) GetValidatorKeys(poolName string) (string, [][]byte, error) {
 		}
 	}
 	return poolName, pubKeysDeposited, nil
-}
-
-func (a *Metrics) EpochToTime(epoch uint64) (time.Time, error) {
-	epochTime, err := slots.ToTime(uint64(a.genesisSeconds), ethTypes.Slot(epoch*a.slotsInEpoch))
-	if err != nil {
-		return time.Time{}, err
-	}
-	return epochTime, nil
 }
