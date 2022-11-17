@@ -11,9 +11,14 @@ import (
 // go build -v -ldflags="-X 'github.com/alrevuelta/eth-pools-metrics/config.ReleaseVersion=x.y.z'"
 var ReleaseVersion = "custom-build"
 
+// Number of slots in an epoch
+// 32 Ethereum mainnet
+// 16 Gnosis mainnet
+var SlotsInEpoch = uint64(32)
+
 type Config struct {
-	PoolNames []string
-	//Network               string
+	PoolNames             []string
+	Network               string
 	WithdrawalCredentials []string
 	FromAddress           []string
 	BeaconRpcEndpoint     string
@@ -48,7 +53,7 @@ func NewCliConfig() (*Config, error) {
 	flag.Var(&fromAddress, "from-address", "Wallet addresses used to deposit. Can be used multiple times")
 	flag.Var(&poolNames, "pool-name", "Pool name to monitor. Can be useed multiple times")
 
-	//var network = flag.String("network", "mainnet", "Ethereum 2.0 network mainnet|prater|pyrmont")
+	var network = flag.String("network", "mainnet", "mainnet|gnosis")
 	var beaconRpcEndpoint = flag.String("beacon-rpc-endpoint", "localhost:4000", "Address:Port of a eth2 beacon node endpoint")
 	var prometheusPort = flag.Int("prometheus-port", 9500, "Prometheus port to listen to")
 	var version = flag.Bool("version", false, "Prints the release version and exits")
@@ -64,6 +69,16 @@ func NewCliConfig() (*Config, error) {
 	if *version {
 		log.Info("Version: ", ReleaseVersion)
 		os.Exit(0)
+	}
+
+	if *network != "mainnet" && *network != "gnosis" {
+		log.Info("Invalid network: ", *network)
+		os.Exit(0)
+	}
+
+	// Change the slots in an epoch for gnosis chain
+	if *network == "gnosis" {
+		SlotsInEpoch = uint64(16)
 	}
 	/*
 		if *poolName == "required" {
@@ -84,7 +99,7 @@ func NewCliConfig() (*Config, error) {
 
 	conf := &Config{
 		PoolNames: poolNames,
-		//Network:               *network,
+		Network:               *network,
 		BeaconRpcEndpoint:     *beaconRpcEndpoint,
 		PrometheusPort:        *prometheusPort,
 		WithdrawalCredentials: withdrawalCredentials,
@@ -106,11 +121,12 @@ func logConfig(cfg *Config) {
 		"BeaconRpcEndpoint":     cfg.BeaconRpcEndpoint,
 		"WithdrawalCredentials": cfg.WithdrawalCredentials,
 		"FromAddress":           cfg.FromAddress,
-		//"Network":               cfg.Network,
-		"PrometheusPort": cfg.PrometheusPort,
-		"Postgres":       cfg.Postgres,
-		"Eth1Address":    cfg.Eth1Address,
-		"Eth2Address":    cfg.Eth2Address,
-		"EpochDebug":     cfg.EpochDebug,
+		"Network":               cfg.Network,
+		"PrometheusPort":        cfg.PrometheusPort,
+		"Postgres":              cfg.Postgres,
+		"Eth1Address":           cfg.Eth1Address,
+		"Eth2Address":           cfg.Eth2Address,
+		"EpochDebug":            cfg.EpochDebug,
+		"SlotsInEpoch":		     SlotsInEpoch,
 	}).Info("Cli Config:")
 }
