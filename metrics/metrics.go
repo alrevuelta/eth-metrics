@@ -176,7 +176,7 @@ func (a *Metrics) Loop() {
 			continue
 		}
 
-		currentEpoch := uint64(headSlot.HeadSlot)/uint64(32) - 2
+		currentEpoch := uint64(headSlot.HeadSlot)/uint64(config.SlotsInEpoch) - 2
 
 		// If a debug epoch is set, overwrite the slot. Will compute just metrics for that epoch
 		if a.epochDebug != "" {

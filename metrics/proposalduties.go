@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/alrevuelta/eth-pools-metrics/prometheus"
-
+    "github.com/alrevuelta/eth-pools-metrics/config"
 	"github.com/alrevuelta/eth-pools-metrics/schemas"
 	api "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/attestantio/go-eth2-client/http"
@@ -89,7 +89,7 @@ func (p *ProposalDuties) GetProposedBlocks(epoch uint64) ([]*api.BeaconBlockHead
 	log.Info("Fetching proposed blocks for epoch: ", epoch)
 
 	epochBlockHeaders := make([]*api.BeaconBlockHeader, 0)
-	slotsInEpoch := uint64(32)
+	slotsInEpoch := uint64(config.SlotsInEpoch)
 
 	for i := uint64(0); i < slotsInEpoch; i++ {
 		slot := epoch*slotsInEpoch + uint64(i)
@@ -136,7 +136,7 @@ func (p *ProposalDuties) GetProposalMetrics(
 		return proposalMetrics, errors.New("duties and proposals contains different slots")
 	}*/
 
-	proposalMetrics.Epoch = uint64(proposalDuties[0].Slot) / 32
+	proposalMetrics.Epoch = uint64(proposalDuties[0].Slot) / config.SlotsInEpoch
 
 	for _, duty := range proposalDuties {
 		proposalMetrics.Scheduled = append(

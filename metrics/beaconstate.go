@@ -15,6 +15,7 @@ import (
 	"github.com/alrevuelta/eth-pools-metrics/postgresql"
 	"github.com/alrevuelta/eth-pools-metrics/prometheus"
 	"github.com/alrevuelta/eth-pools-metrics/schemas"
+	"github.com/alrevuelta/eth-pools-metrics/config"
 	"github.com/attestantio/go-eth2-client/http"
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
@@ -200,8 +201,7 @@ func PopulateParticipationAndBalance(
 	metrics.EarnedBalance = earnedBalance
 	metrics.LosedBalance = lostBalance
 
-	// TODO: Don't hardcode 32
-	metrics.Epoch = GetSlot(beaconState) / 32
+	metrics.Epoch = GetSlot(beaconState) / config.SlotsInEpoch
 
 	metrics.NOfTotalVotes = uint64(len(activeValidatorIndexes)) * 3
 	metrics.NOfIncorrectSource = nOfIncorrectSource
@@ -230,7 +230,7 @@ func (p *BeaconState) GetBeaconState(epoch uint64) (*spec.VersionedBeaconState, 
 	// If epoch=1, slot = epoch*32 = 32, which is the first slot of epoch 1
 	// but we want to run the metrics on the last slot, so -1
 	// goes to the last slot of the previous epoch
-	slotStr := strconv.FormatUint(epoch*32-1, 10)
+	slotStr := strconv.FormatUint(epoch*config.SlotsInEpoch-1, 10)
 
 	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(p.timeout))
 	defer cancel()
@@ -240,7 +240,7 @@ func (p *BeaconState) GetBeaconState(epoch uint64) (*spec.VersionedBeaconState, 
 	if err != nil {
 		return nil, err
 	}
-	log.Info("Got beacon state for epoch:", GetSlot(beaconState)/32)
+	log.Info("Got beacon state for epoch:", GetSlot(beaconState)/config.SlotsInEpoch)
 	return beaconState, nil
 }
 
@@ -295,7 +295,7 @@ func GetActiveIndexes(
 	activeIndexes := make([]uint64, 0)
 
 	validators := GetValidators(beaconState)
-	beaconStateEpoch := GetSlot(beaconState) / 32
+	beaconStateEpoch := GetSlot(beaconState) / config.SlotsInEpoch
 
 	for _, valIdx := range validatorIndexes {
 		if beaconStateEpoch >= uint64(validators[valIdx].ActivationEpoch) {
@@ -311,8 +311,8 @@ func GetValidatorsWithLessBalance(
 	prevBeaconState *spec.VersionedBeaconState,
 	currentBeaconState *spec.VersionedBeaconState) ([]uint64, *big.Int, *big.Int, error) {
 
-	prevEpoch := GetSlot(prevBeaconState) / 32
-	currEpoch := GetSlot(currentBeaconState) / 32
+	prevEpoch := GetSlot(prevBeaconState) / config.SlotsInEpoch
+	currEpoch := GetSlot(currentBeaconState) / config.SlotsInEpoch
 	prevBalances := GetBalances(prevBeaconState)
 	currBalances := GetBalances(currentBeaconState)
 
@@ -358,7 +358,7 @@ func ParticipationDebug(
 
 	nActiveValidators := uint64(0)
 
-	beaconStateEpoch := GetSlot(beaconState) / 32
+	beaconStateEpoch := GetSlot(beaconState) / config.SlotsInEpoch
 
 	var nCorrectSource, nCorrectTarget, nCorrectHead uint64
 
@@ -430,7 +430,7 @@ func GetParticipation(
 		if validators[valIndx].Slashed {
 			continue
 		}
-		beaconStateEpoch := GetSlot(beaconState) / 32
+		beaconStateEpoch := GetSlot(beaconState) / config.SlotsInEpoch
 		// Ignore not yet active validators
 		// TODO: Test this
 		if uint64(validators[valIndx].ActivationEpoch) > beaconStateEpoch {
