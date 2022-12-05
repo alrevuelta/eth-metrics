@@ -3,6 +3,7 @@ package price
 import (
 	"time"
 
+	"github.com/alrevuelta/eth-pools-metrics/config"
 	"github.com/alrevuelta/eth-pools-metrics/postgresql"
 	"github.com/alrevuelta/eth-pools-metrics/prometheus"
 	"github.com/pkg/errors"
@@ -10,7 +11,6 @@ import (
 	gecko "github.com/superoo7/go-gecko/v3"
 )
 
-var ids = []string{"ethereum"}
 var vc = []string{"usd", "eurr"}
 
 type Price struct {
@@ -42,12 +42,21 @@ func NewPrice(postgresEndpoint string) (*Price, error) {
 }
 
 func (p *Price) GetEthPrice() {
-	sp, err := p.coingecko.SimplePrice(ids, vc)
+	id := ""
+	if config.Network == "mainnet" {
+		id = "ethereum"
+	} else if config.Network == "gnosis" {
+		id = "gnosis"
+	} else {
+		log.Fatal("Network not supported: ", config.Network)
+	}
+
+	sp, err := p.coingecko.SimplePrice([]string{id}, vc)
 	if err != nil {
 		log.Error(err)
 	}
 
-	eth := (*sp)["ethereum"]
+	eth := (*sp)[id]
 	ethPriceUsd := eth["usd"]
 
 	logPrice(ethPriceUsd)
