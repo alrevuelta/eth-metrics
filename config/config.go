@@ -16,6 +16,8 @@ var ReleaseVersion = "custom-build"
 // 16 Gnosis mainnet
 var SlotsInEpoch = uint64(32)
 
+var Network = ""
+
 type Config struct {
 	PoolNames             []string
 	Network               string
@@ -80,6 +82,9 @@ func NewCliConfig() (*Config, error) {
 	if *network == "gnosis" {
 		SlotsInEpoch = uint64(16)
 	}
+
+	// Used for the price
+	Network = *network
 	/*
 		if *poolName == "required" {
 			log.Fatal("pool-name flag is required")
@@ -98,7 +103,7 @@ func NewCliConfig() (*Config, error) {
 		}*/
 
 	conf := &Config{
-		PoolNames: poolNames,
+		PoolNames:             poolNames,
 		Network:               *network,
 		BeaconRpcEndpoint:     *beaconRpcEndpoint,
 		PrometheusPort:        *prometheusPort,
@@ -127,6 +132,6 @@ func logConfig(cfg *Config) {
 		"Eth1Address":           cfg.Eth1Address,
 		"Eth2Address":           cfg.Eth2Address,
 		"EpochDebug":            cfg.EpochDebug,
-		"SlotsInEpoch":		     SlotsInEpoch,
+		"SlotsInEpoch":          SlotsInEpoch,
 	}).Info("Cli Config:")
 }
