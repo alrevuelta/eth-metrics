@@ -6,16 +6,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alrevuelta/eth-pools-metrics/config"
 	"github.com/alrevuelta/eth-pools-metrics/prometheus"
-    "github.com/alrevuelta/eth-pools-metrics/config"
 	"github.com/alrevuelta/eth-pools-metrics/schemas"
 	api "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/attestantio/go-eth2-client/http"
+	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	log "github.com/sirupsen/logrus"
 )
+
+// TODO: Rename. Not only returns proposal duties anymore but also the full blocks
 
 type ProposalDuties struct {
 	httpClient    *http.Service
@@ -85,8 +88,8 @@ func (p *ProposalDuties) GetProposalDuties(epoch uint64) ([]*api.ProposerDuty, e
 	return duties, nil
 }
 
-func (p *ProposalDuties) GetProposedBlocks(epoch uint64) ([]*api.BeaconBlockHeader, error) {
-	log.Info("Fetching proposed blocks for epoch: ", epoch)
+func (p *ProposalDuties) GetProposedBlockHeaders(epoch uint64) ([]*api.BeaconBlockHeader, error) {
+	log.Info("Fetching proposed block headers for epoch: ", epoch)
 
 	epochBlockHeaders := make([]*api.BeaconBlockHeader, 0)
 	slotsInEpoch := uint64(config.SlotsInEpoch)
@@ -109,6 +112,25 @@ func (p *ProposalDuties) GetProposedBlocks(epoch uint64) ([]*api.BeaconBlockHead
 	}
 
 	return epochBlockHeaders, nil
+}
+
+// Returns the whole blocks proposed in a given epoch
+func (p *ProposalDuties) GetBellatrixProposedBlocks(epoch uint64) ([]*bellatrix.SignedBeaconBlock, error) {
+	log.Info("Fetching signed proposed blocks for epoch: ", epoch)
+	slotsInEpoch := config.SlotsInEpoch
+	initSlot := epoch * slotsInEpoch
+
+	blocks := make([]*bellatrix.SignedBeaconBlock, 0)
+
+	for i := initSlot; i < (initSlot + slotsInEpoch); i++ {
+		slotStr := strconv.FormatUint(i, 10)
+		signedBeaconBlock, err := p.httpClient.SignedBeaconBlock(context.Background(), slotStr)
+		if err != nil {
+			return nil, err
+		}
+		blocks = append(blocks, signedBeaconBlock.Bellatrix)
+	}
+	return blocks, nil
 }
 
 func (p *ProposalDuties) GetProposalMetrics(

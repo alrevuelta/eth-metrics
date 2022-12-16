@@ -12,10 +12,10 @@ import (
 
 	//"github.com/alrevuelta/eth-pools-metrics/prometheus"
 
+	"github.com/alrevuelta/eth-pools-metrics/config"
 	"github.com/alrevuelta/eth-pools-metrics/postgresql"
 	"github.com/alrevuelta/eth-pools-metrics/prometheus"
 	"github.com/alrevuelta/eth-pools-metrics/schemas"
-	"github.com/alrevuelta/eth-pools-metrics/config"
 	"github.com/attestantio/go-eth2-client/http"
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
@@ -581,13 +581,19 @@ func GetValidators(beaconState *spec.VersionedBeaconState) []*phase0.Validator {
 }
 
 func GetBalances(beaconState *spec.VersionedBeaconState) []uint64 {
-	var balances []uint64
+	var balancesGweiType []phase0.Gwei
 	if beaconState.Altair != nil {
-		balances = beaconState.Altair.Balances
+		balancesGweiType = beaconState.Altair.Balances
 	} else if beaconState.Bellatrix != nil {
-		balances = beaconState.Bellatrix.Balances
+		balancesGweiType = beaconState.Bellatrix.Balances
 	} else {
 		log.Fatal("Beacon state was empty")
+	}
+
+	// TODO: Dirty, refactor without iterating twice
+	var balances []uint64
+	for _, balance := range balancesGweiType {
+		balances = append(balances, uint64(balance))
 	}
 	return balances
 }
@@ -605,7 +611,7 @@ func GetPreviousEpochParticipation(beaconState *spec.VersionedBeaconState) []alt
 }
 
 func GetSlot(beaconState *spec.VersionedBeaconState) uint64 {
-	var slot uint64
+	var slot phase0.Slot
 	if beaconState.Altair != nil {
 		slot = beaconState.Altair.Slot
 	} else if beaconState.Bellatrix != nil {
@@ -613,7 +619,7 @@ func GetSlot(beaconState *spec.VersionedBeaconState) uint64 {
 	} else {
 		log.Fatal("Beacon state was empty")
 	}
-	return slot
+	return uint64(slot)
 }
 
 func GetCurrentSyncCommittee(beaconState *spec.VersionedBeaconState) []phase0.BLSPubKey {

@@ -202,14 +202,36 @@ func (a *Metrics) Loop() {
 		}
 
 		// Fetch who actually proposed the blocks in this epoch
-		proposed, err := a.proposalDuties.GetProposedBlocks(currentEpoch)
+		proposedHeaders, err := a.proposalDuties.GetProposedBlockHeaders(currentEpoch)
 		if err != nil {
 			log.Error(err)
 			continue
 		}
 
+		bellatrixProposedBlocks, err := a.proposalDuties.GetBellatrixProposedBlocks(currentEpoch)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+
+		for _, block := range bellatrixProposedBlocks {
+			mevReward, mevFeeRec, err := MevRewardInWei(*block)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+			log.WithFields(log.Fields{
+				"Slot":               block.Message.Slot,
+				"ProposedIndex":      block.Message.ProposerIndex,
+				"MevReward":          mevReward,
+				"VanilaFeeRecipient": block.Message.Body.ExecutionPayload.FeeRecipient.String(),
+				"MevFeeRecipient":    mevFeeRec,
+				//"Graffiti":            block.Message.Body.Graffiti,
+			}).Info("proposed block")
+		}
+
 		// Summarize duties + proposed in a struct
-		proposalMetrics, err := a.proposalDuties.GetProposalMetrics(duties, proposed)
+		proposalMetrics, err := a.proposalDuties.GetProposalMetrics(duties, proposedHeaders)
 		if err != nil {
 			log.Error(err)
 			continue
