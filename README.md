@@ -146,3 +146,7 @@ $ ./eth-pools-metrics \
 --eth2address=https:your-consensus-endpoint \
 --pool-name=/validators/coinbase.txt
 ```
+
+## Support
+
+This project gratefully acknowledges the Ethereum Foundation for its support through their grant FY22-0795.
