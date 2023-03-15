@@ -56,7 +56,7 @@ func Test_GetValidatorsWithLessBalance(t *testing.T) {
 	prevBeaconState := &spec.VersionedBeaconState{
 		Altair: &altair.BeaconState{
 			Slot: 34 * 32,
-			Balances: []uint64{
+			Balances: []phase0.Gwei{
 				1000,
 				9000,
 				2000,
@@ -68,7 +68,7 @@ func Test_GetValidatorsWithLessBalance(t *testing.T) {
 	currentBeaconState := &spec.VersionedBeaconState{
 		Altair: &altair.BeaconState{
 			Slot: 35 * 32,
-			Balances: []uint64{
+			Balances: []phase0.Gwei{
 				900,
 				9500,
 				1000,
