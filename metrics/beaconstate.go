@@ -8,18 +8,18 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/pkg/errors"
-
-	//"github.com/alrevuelta/eth-pools-metrics/prometheus"
-
-	"github.com/alrevuelta/eth-pools-metrics/postgresql"
-	"github.com/alrevuelta/eth-pools-metrics/prometheus"
-	"github.com/alrevuelta/eth-pools-metrics/schemas"
-	"github.com/alrevuelta/eth-pools-metrics/config"
 	"github.com/attestantio/go-eth2-client/http"
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/pkg/errors"
+
+	//"github.com/alrevuelta/eth-pools-metrics/prometheus"
+
+	"github.com/alrevuelta/eth-pools-metrics/config"
+	"github.com/alrevuelta/eth-pools-metrics/postgresql"
+	"github.com/alrevuelta/eth-pools-metrics/prometheus"
+	"github.com/alrevuelta/eth-pools-metrics/schemas"
 	"github.com/rs/zerolog"
 
 	log "github.com/sirupsen/logrus"
@@ -574,6 +574,8 @@ func GetValidators(beaconState *spec.VersionedBeaconState) []*phase0.Validator {
 		validators = beaconState.Altair.Validators
 	} else if beaconState.Bellatrix != nil {
 		validators = beaconState.Bellatrix.Validators
+	} else if beaconState.Capella != nil {
+		validators = beaconState.Capella.Validators
 	} else {
 		log.Fatal("Beacon state was empty")
 	}
@@ -581,13 +583,20 @@ func GetValidators(beaconState *spec.VersionedBeaconState) []*phase0.Validator {
 }
 
 func GetBalances(beaconState *spec.VersionedBeaconState) []uint64 {
-	var balances []uint64
+	var tmpBalances []phase0.Gwei
 	if beaconState.Altair != nil {
-		balances = beaconState.Altair.Balances
+		tmpBalances = beaconState.Altair.Balances
 	} else if beaconState.Bellatrix != nil {
-		balances = beaconState.Bellatrix.Balances
+		tmpBalances = beaconState.Bellatrix.Balances
+	} else if beaconState.Capella != nil {
+		tmpBalances = beaconState.Capella.Balances
 	} else {
 		log.Fatal("Beacon state was empty")
+	}
+
+	balances := make([]uint64, len(tmpBalances))
+	for i := range tmpBalances {
+		balances[i] = uint64(tmpBalances[i])
 	}
 	return balances
 }
@@ -598,6 +607,8 @@ func GetPreviousEpochParticipation(beaconState *spec.VersionedBeaconState) []alt
 		previousEpochParticipation = beaconState.Altair.PreviousEpochParticipation
 	} else if beaconState.Bellatrix != nil {
 		previousEpochParticipation = beaconState.Bellatrix.PreviousEpochParticipation
+	} else if beaconState.Capella != nil {
+		previousEpochParticipation = beaconState.Capella.PreviousEpochParticipation
 	} else {
 		log.Fatal("Beacon state was empty")
 	}
@@ -607,9 +618,11 @@ func GetPreviousEpochParticipation(beaconState *spec.VersionedBeaconState) []alt
 func GetSlot(beaconState *spec.VersionedBeaconState) uint64 {
 	var slot uint64
 	if beaconState.Altair != nil {
-		slot = beaconState.Altair.Slot
+		slot = uint64(beaconState.Altair.Slot)
 	} else if beaconState.Bellatrix != nil {
-		slot = beaconState.Bellatrix.Slot
+		slot = uint64(beaconState.Bellatrix.Slot)
+	} else if beaconState.Capella != nil {
+		slot = uint64(beaconState.Capella.Slot)
 	} else {
 		log.Fatal("Beacon state was empty")
 	}
@@ -622,6 +635,8 @@ func GetCurrentSyncCommittee(beaconState *spec.VersionedBeaconState) []phase0.BL
 		pubKeys = beaconState.Altair.CurrentSyncCommittee.Pubkeys
 	} else if beaconState.Bellatrix != nil {
 		pubKeys = beaconState.Bellatrix.CurrentSyncCommittee.Pubkeys
+	} else if beaconState.Capella != nil {
+		pubKeys = beaconState.Capella.CurrentSyncCommittee.Pubkeys
 	} else {
 		log.Fatal("Beacon state was empty")
 	}
