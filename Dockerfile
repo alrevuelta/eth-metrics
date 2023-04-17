@@ -8,7 +8,7 @@ RUN apk add --update gcc g++
 RUN go mod download
 RUN go build -o /eth-pools-metrics
 
-FROM golang:1.16-alpine
+FROM golang:1.17-alpine
 
 WORKDIR /
 
