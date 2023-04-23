@@ -300,6 +300,7 @@ func GetActiveIndexes(
 	for _, valIdx := range validatorIndexes {
 		if beaconStateEpoch >= uint64(validators[valIdx].ActivationEpoch) &&
 			beaconStateEpoch < uint64(validators[valIdx].ExitEpoch) {
+			activeIndexes = append(activeIndexes, valIdx)
 		}
 	}
 
