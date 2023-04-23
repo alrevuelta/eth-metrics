@@ -298,8 +298,8 @@ func GetActiveIndexes(
 	beaconStateEpoch := GetSlot(beaconState) / config.SlotsInEpoch
 
 	for _, valIdx := range validatorIndexes {
-		if beaconStateEpoch >= uint64(validators[valIdx].ActivationEpoch) {
-			activeIndexes = append(activeIndexes, valIdx)
+		if beaconStateEpoch >= uint64(validators[valIdx].ActivationEpoch) &&
+			beaconStateEpoch < uint64(validators[valIdx].ExitEpoch) {
 		}
 	}
 
