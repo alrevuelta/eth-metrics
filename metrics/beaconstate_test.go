@@ -90,6 +90,7 @@ func Test_GetValidatorsWithLessBalance(t *testing.T) {
 		currentBeaconState,
 		map[uint64]*big.Int{},
 		map[uint64][]*electra.PendingConsolidation{},
+		map[uint64]big.Int{},
 	)
 
 	require.NoError(t, err)
@@ -122,7 +123,8 @@ func Test_GetValidatorsWithLessBalance_NonConsecutive(t *testing.T) {
 		prevBeaconState,
 		currentBeaconState,
 		map[uint64]*big.Int{},
-		map[uint64][]*electra.PendingConsolidation{})
+		map[uint64][]*electra.PendingConsolidation{},
+		map[uint64]big.Int{})
 
 	require.Error(t, err)
 }
@@ -304,4 +306,98 @@ func Test_GetProcessedConsolidations_NilPendingConsolidations(t *testing.T) {
 	processedConsolidations, err := GetProcessedConsolidations(prevBeaconState, currentBeaconState)
 	require.Error(t, err)
 	require.Nil(t, processedConsolidations)
+}
+
+func Test_GetProcessedDeposits(t *testing.T) {
+	prevBeaconState := &spec.VersionedBeaconState{
+		Electra: &electra.BeaconState{
+			PendingDeposits: []*electra.PendingDeposit{
+				{Pubkey: validator_0,
+					Amount: 1000000000000000000},
+				{Pubkey: validator_1,
+					Amount: 1000000000000000000},
+			},
+		},
+	}
+	currentBeaconState := &spec.VersionedBeaconState{
+		Electra: &electra.BeaconState{
+			PendingDeposits: []*electra.PendingDeposit{
+				{Pubkey: validator_1,
+					Amount: 1000000000000000000},
+			},
+		},
+	}
+	valKeyToIndex := make(map[string]uint64)
+	valKeyToIndex[hex.EncodeToString(validator_0[:])] = 0
+	valKeyToIndex[hex.EncodeToString(validator_1[:])] = 1
+	processedDeposits, err := GetProcessedDeposits(prevBeaconState, currentBeaconState, valKeyToIndex)
+	require.NoError(t, err)
+	require.Equal(t, processedDeposits, map[uint64]big.Int{
+		0: *big.NewInt(1000000000000000000),
+	})
+}
+
+func Test_GetProcessedDeposits_EmptyCurrentPendingDeposits(t *testing.T) {
+	prevBeaconState := &spec.VersionedBeaconState{
+		Electra: &electra.BeaconState{
+			PendingDeposits: []*electra.PendingDeposit{
+				{Pubkey: validator_0,
+					Amount: 1000000000000000000},
+			},
+		},
+	}
+	currentBeaconState := &spec.VersionedBeaconState{
+		Electra: &electra.BeaconState{
+			PendingDeposits: []*electra.PendingDeposit{},
+		},
+	}
+	valKeyToIndex := make(map[string]uint64)
+	valKeyToIndex[hex.EncodeToString(validator_0[:])] = 0
+	processedDeposits, err := GetProcessedDeposits(prevBeaconState, currentBeaconState, valKeyToIndex)
+	require.NoError(t, err)
+	require.Equal(t, processedDeposits, map[uint64]big.Int{
+		0: *big.NewInt(1000000000000000000),
+	})
+}
+
+func Test_GetProcessedDeposits_EmptyPrevPendingDeposits(t *testing.T) {
+	prevBeaconState := &spec.VersionedBeaconState{
+		Electra: &electra.BeaconState{
+			PendingDeposits: []*electra.PendingDeposit{},
+		},
+	}
+	currentBeaconState := &spec.VersionedBeaconState{
+		Electra: &electra.BeaconState{
+			PendingDeposits: []*electra.PendingDeposit{
+				{Pubkey: validator_0,
+					Amount: 1000000000000000000},
+			},
+		},
+	}
+	valKeyToIndex := make(map[string]uint64)
+	valKeyToIndex[hex.EncodeToString(validator_0[:])] = 0
+	processedDeposits, err := GetProcessedDeposits(prevBeaconState, currentBeaconState, valKeyToIndex)
+	require.NoError(t, err)
+	require.Equal(t, processedDeposits, map[uint64]big.Int{})
+}
+
+func Test_GetProcessedDeposits_NilPrevPendingDeposits(t *testing.T) {
+	prevBeaconState := &spec.VersionedBeaconState{
+		Electra: &electra.BeaconState{
+			PendingDeposits: nil,
+		},
+	}
+	currentBeaconState := &spec.VersionedBeaconState{
+		Electra: &electra.BeaconState{
+			PendingDeposits: []*electra.PendingDeposit{
+				{Pubkey: validator_0,
+					Amount: 1000000000000000000},
+			},
+		},
+	}
+	valKeyToIndex := make(map[string]uint64)
+	valKeyToIndex[hex.EncodeToString(validator_0[:])] = 0
+	processedDeposits, err := GetProcessedDeposits(prevBeaconState, currentBeaconState, valKeyToIndex)
+	require.Error(t, err)
+	require.Nil(t, processedDeposits)
 }

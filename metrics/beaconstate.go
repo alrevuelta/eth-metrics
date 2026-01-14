@@ -57,7 +57,8 @@ func (p *BeaconState) Run(
 	relayRewards *big.Int,
 	validatorIndexToWithdrawalAmount map[uint64]*big.Int,
 	proposerTips map[uint64]*big.Int,
-	validatorIndexToProcessedConsolidation map[uint64][]*electra.PendingConsolidation) error {
+	validatorIndexToProcessedConsolidation map[uint64][]*electra.PendingConsolidation,
+	validatorIndexToProcessedDeposit map[uint64]big.Int) error {
 
 	if currentBeaconState == nil || prevBeaconState == nil {
 		return errors.New("current or previous beacon state is nil")
@@ -92,7 +93,8 @@ func (p *BeaconState) Run(
 		currentBeaconState,
 		prevBeaconState,
 		validatorIndexToWithdrawalAmount,
-		validatorIndexToProcessedConsolidation)
+		validatorIndexToProcessedConsolidation,
+		validatorIndexToProcessedDeposit)
 
 	if err != nil {
 		return errors.Wrap(err, "error populating participation and balance")
@@ -183,7 +185,8 @@ func (p *BeaconState) PopulateParticipationAndBalance(
 	beaconState *spec.VersionedBeaconState,
 	prevBeaconState *spec.VersionedBeaconState,
 	validatorIndexToWithdrawalAmount map[uint64]*big.Int,
-	validatorIndexToProcessedConsolidation map[uint64][]*electra.PendingConsolidation) (schemas.ValidatorPerformanceMetrics, error) {
+	validatorIndexToProcessedConsolidation map[uint64][]*electra.PendingConsolidation,
+	validatorIndexToProcessedDeposit map[uint64]big.Int) (schemas.ValidatorPerformanceMetrics, error) {
 
 	metrics := schemas.ValidatorPerformanceMetrics{
 		EarnedBalance:    big.NewInt(0),
@@ -217,7 +220,8 @@ func (p *BeaconState) PopulateParticipationAndBalance(
 		prevBeaconState,
 		beaconState,
 		validatorIndexToWithdrawalAmount,
-		validatorIndexToProcessedConsolidation)
+		validatorIndexToProcessedConsolidation,
+		validatorIndexToProcessedDeposit)
 
 	if err != nil {
 		return schemas.ValidatorPerformanceMetrics{}, err
@@ -346,7 +350,8 @@ func (p *BeaconState) GetValidatorsWithLessBalance(
 	prevBeaconState *spec.VersionedBeaconState,
 	currentBeaconState *spec.VersionedBeaconState,
 	validatorIndexToWithdrawalAmount map[uint64]*big.Int,
-	validatorIndexToProcessedConsolidation map[uint64][]*electra.PendingConsolidation) ([]uint64, *big.Int, *big.Int, error) {
+	validatorIndexToProcessedConsolidation map[uint64][]*electra.PendingConsolidation,
+	validatorIndexToProcessedDeposit map[uint64]big.Int) ([]uint64, *big.Int, *big.Int, error) {
 
 	prevEpoch := GetSlot(prevBeaconState) / p.networkParameters.slotsInEpoch
 	currEpoch := GetSlot(currentBeaconState) / p.networkParameters.slotsInEpoch
@@ -384,6 +389,11 @@ func (p *BeaconState) GetValidatorsWithLessBalance(
 				sourceBalance := big.NewInt(0).SetUint64(uint64(prevValidators[consolidation.SourceIndex].EffectiveBalance))
 				currentEpochValBalance.Sub(currentEpochValBalance, sourceBalance)
 			}
+		}
+
+		// Check if there are deposits and subtract them from the balance
+		if deposit, ok := validatorIndexToProcessedDeposit[valIdx]; ok {
+			currentEpochValBalance.Sub(currentEpochValBalance, &deposit)
 		}
 
 		delta := big.NewInt(0).Sub(currentEpochValBalance, prevEpochValBalance)
@@ -525,6 +535,39 @@ func GetProcessedConsolidations(
 		}
 	}
 	return consolidations, nil
+}
+
+func GetProcessedDeposits(
+	prevBeaconState *spec.VersionedBeaconState,
+	currentBeaconState *spec.VersionedBeaconState,
+	valKeyToIndex map[string]uint64,
+) (map[uint64]big.Int, error) {
+	deposits := make(map[uint64]big.Int)
+	prevPendingDeposits := GetPendingDeposits(prevBeaconState)
+	currPendingDeposits := GetPendingDeposits(currentBeaconState)
+
+	if prevPendingDeposits == nil || currPendingDeposits == nil {
+		return nil, errors.New("state with nil pending deposits found")
+	}
+
+	if len(prevPendingDeposits) == 0 {
+		return deposits, nil
+	}
+
+	for _, deposit := range prevPendingDeposits {
+		// When the deposit is in current state pending deposits, we have processed all included deposits
+		if len(currPendingDeposits) != 0 && currPendingDeposits[0].Pubkey.String() == deposit.Pubkey.String() {
+			break
+		}
+
+		valIndex, ok := valKeyToIndex[hex.EncodeToString(deposit.Pubkey[:])]
+		if !ok {
+			continue
+		}
+		deposits[valIndex] = *big.NewInt(0).SetUint64(uint64(deposit.Amount))
+
+	}
+	return deposits, nil
 }
 
 func logMetrics(
@@ -696,4 +739,16 @@ func GetPendingConsolidations(beaconState *spec.VersionedBeaconState) []*electra
 		log.Fatal("Beacon state was empty")
 	}
 	return pendingConsolidations
+}
+
+func GetPendingDeposits(beaconState *spec.VersionedBeaconState) []*electra.PendingDeposit {
+	var pendingDeposits []*electra.PendingDeposit
+	if beaconState.Electra != nil {
+		pendingDeposits = beaconState.Electra.PendingDeposits
+	} else if beaconState.Fulu != nil {
+		pendingDeposits = beaconState.Fulu.PendingDeposits
+	} else {
+		log.Fatal("Beacon state was empty")
+	}
+	return pendingDeposits
 }

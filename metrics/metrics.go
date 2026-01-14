@@ -363,6 +363,11 @@ func (a *Metrics) ProcessEpoch(
 		return nil, errors.Wrap(err, "error getting processed consolidations")
 	}
 
+	processedDeposits, err := GetProcessedDeposits(prevBeaconState, currentBeaconState, valKeyToIndex)
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting processed deposits")
+	}
+
 	relayRewardsPerPool, slotsWithMEVRewards, err := a.relayRewards.GetRelayRewards(currentEpoch)
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting relay rewards")
@@ -399,6 +404,7 @@ func (a *Metrics) ProcessEpoch(
 			validatorIndexToWithdrawalAmount,
 			proposerTips,
 			processedConsolidations,
+			processedDeposits,
 		)
 		if err != nil {
 			return nil, errors.Wrap(err, "error running beacon state")
